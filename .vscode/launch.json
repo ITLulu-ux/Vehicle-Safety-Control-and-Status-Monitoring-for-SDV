@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Node.js: External Terminal",
+      "type": "debugpy",  // "node" -> debugpy 로 바꿈 3.18일
+      "request": "launch",
+      "program": "${file}",
+      "console": "externalTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
+    },
+    {
+      "name": "Python Debugger: Python File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "externalTerminal"
+    }
+  ]
+}

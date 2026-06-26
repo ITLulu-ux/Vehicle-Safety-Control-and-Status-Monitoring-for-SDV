@@ -1,0 +1,99 @@
+{
+  "redhat.telemetry.enabled": true,
+  "window.zoomLevel": 0,
+  "workbench.iconTheme": "material-icon-theme",
+  "editor.fontFamily": "D2Coding, monospace, Consolas, 'Courier New'",
+  "editor.fontSize": 18,
+  "editor.tabSize": 6,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.wordWrap": "on",
+  "editor.formatOnSave": true,
+  "editor.stickyScroll.enabled": false,
+  "editor.minimap.enabled": false,
+  "editor.accessibilitySupport": "off",
+  "editor.inlineSuggest.showToolbar": "onHover",
+  "editor.linkedEditing": true,
+  "editor.quickSuggestionsDelay": 10,
+  "editor.quickSuggestions": {
+    "other": false,
+    "comments": false,
+    "strings": true
+  },
+  "editor.suggestOnTriggerCharacters": false,
+  "editor.parameterHints.enabled": false,
+  "editor.suggestSelection": "first",    // 자동완성 첫 번째 선택
+  "editor.tabCompletion": "on",          // 탭으로 자동 완성
+  "css.validate": true,
+  "files.associations": {                // 파일 확장자 강제 연결
+    "*.css": "css"
+  },
+  "emmet.includeLanguages": {            // Emmet 지원 언어 확장
+    "css": "css"
+  },
+  "terminal.integrated.fontFamily": "D2Coding, Consolas",
+  "terminal.integrated.fontSize": 20,
+  "html.autoClosingTags": true,
+  "html.format.enable": true,
+  "github.copilot.enable": {
+    "*": false,
+    "plaintext": false,
+    "markdown": false,
+    "scminput": false
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "vscode-edge-devtools.webhintInstallNotification": true,
+  "emmet.variables": {
+    "lang": "kr"
+  },
+
+  "editor.tokenColorCustomizations": {
+  "textMateRules": [
+    {
+      "scope": "comment",
+      "settings": {
+        "foreground": "#FFD700",
+        "fontStyle": "italic"         // 기울임 꼴
+      }
+    }
+  ]
+},
+"workbench.colorCustomizations": {                      // 가이드라인 선 진하게
+  "editorIndentGuide.background": "#666666",
+  "editorIndentGuide.activeBackground": "#ffffff",
+    // 노트북 마크다운을 포함한 전체 기본 글자색을 더 밝게
+    "foreground": "#5491fb",
+    // 노트북 마크다운 제목이나 강조 텍스트 등에 영향을 주는 보조 색상
+    "descriptionForeground": "#cccccc",
+},
+
+  "vsicons.dontShowNewVersionMessage": true,
+  "workbench.colorTheme": "One Dark Pro",
+  "liveServer.settings.donotShowInfoMsg": true,
+  "liveServer.settings.CustomBrowser": "microsoft-edge",
+  "liveServer.settings.port": 5502,
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 5000,
+  "bitoAI.codeCompletion.enableAutoCompletion": true,
+  "bitoAI.codeCompletion.enableCommentToCode": true,
+
+  "[markdown]": {
+  "editor.wordWrap": "on",
+  "editor.fontSize":15
+},
+
+"markdown.styles": [
+  "markdown.css"
+]
+  
+}

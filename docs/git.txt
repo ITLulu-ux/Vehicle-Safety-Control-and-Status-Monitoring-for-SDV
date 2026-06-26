@@ -1,0 +1,23 @@
+1. 저장소 Clone
+
+git clone https://github.com/hyeon-500/vehicle_pr.git
+
+2. VS Code로 열기
+
+File -> Open Folder -> vehicel_pr
+
+3. 브랜치 목록 가져오기 
+
+git branch --all
+
+4. 사용자 정보 설정(최초1회)
+
+git config --global user.name "GitHub 아이디 또는 이름"
+git config --global user.email "GitHub 이메일"
+
+5. 확인
+
+git config --global user.name
+git config --global user.email
+
+6. main 작업금지 작업 브랜치에서 작업

@@ -47,22 +47,22 @@
 /* USER CODE BEGIN Variables */
 
 /* USER CODE END Variables */
-osThreadId Task_Env_ProcesHandle;
-osThreadId Task_CAN_TxHandle;
-osThreadId Task_HeartbeatHandle;
-osThreadId Task_CAN_RxHandle;
-osMessageQId Queue_CAN_TxHandle;
-osMessageQId Queue_CAN_RxHandle;
+osThreadId Sensor_TaskHandle;
+osThreadId CAN_TX_TaskHandle;
+osThreadId Hearbeat_TaskHandle;
+osThreadId CAN_RX_TaskHandle;
+osMessageQId SensorQueueHandle;
+osSemaphoreId CAN_RX_BinarySemphoreHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void const * argument);
-void StartTask02(void const * argument);
-void StartTask03(void const * argument);
-void StartTask04(void const * argument);
+void StartSensorTask(void const * argument);
+void StartCanTxTask(void const * argument);
+void StartHeartbeatTask(void const * argument);
+void StartCanRxTask(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -96,6 +96,11 @@ void MX_FREERTOS_Init(void) {
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
+  /* Create the semaphores(s) */
+  /* definition and creation of CAN_RX_BinarySemphore */
+  osSemaphoreDef(CAN_RX_BinarySemphore);
+  CAN_RX_BinarySemphoreHandle = osSemaphoreCreate(osSemaphore(CAN_RX_BinarySemphore), 1);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -105,34 +110,30 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
-  /* definition and creation of Queue_CAN_Tx */
-  osMessageQDef(Queue_CAN_Tx, 16, uint16_t);
-  Queue_CAN_TxHandle = osMessageCreate(osMessageQ(Queue_CAN_Tx), NULL);
-
-  /* definition and creation of Queue_CAN_Rx */
-  osMessageQDef(Queue_CAN_Rx, 16, uint16_t);
-  Queue_CAN_RxHandle = osMessageCreate(osMessageQ(Queue_CAN_Rx), NULL);
+  /* definition and creation of SensorQueue */
+  osMessageQDef(SensorQueue, 5, uint16_t);
+  SensorQueueHandle = osMessageCreate(osMessageQ(SensorQueue), NULL);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* definition and creation of Task_Env_Proces */
-  osThreadDef(Task_Env_Proces, StartDefaultTask, osPriorityNormal, 0, 128);
-  Task_Env_ProcesHandle = osThreadCreate(osThread(Task_Env_Proces), NULL);
+  /* definition and creation of Sensor_Task */
+  osThreadDef(Sensor_Task, StartSensorTask, osPriorityNormal, 0, 128);
+  Sensor_TaskHandle = osThreadCreate(osThread(Sensor_Task), NULL);
 
-  /* definition and creation of Task_CAN_Tx */
-  osThreadDef(Task_CAN_Tx, StartTask02, osPriorityIdle, 0, 128);
-  Task_CAN_TxHandle = osThreadCreate(osThread(Task_CAN_Tx), NULL);
+  /* definition and creation of CAN_TX_Task */
+  osThreadDef(CAN_TX_Task, StartCanTxTask, osPriorityNormal, 0, 128);
+  CAN_TX_TaskHandle = osThreadCreate(osThread(CAN_TX_Task), NULL);
 
-  /* definition and creation of Task_Heartbeat */
-  osThreadDef(Task_Heartbeat, StartTask03, osPriorityRealtime, 0, 128);
-  Task_HeartbeatHandle = osThreadCreate(osThread(Task_Heartbeat), NULL);
+  /* definition and creation of Hearbeat_Task */
+  osThreadDef(Hearbeat_Task, StartHeartbeatTask, osPriorityLow, 0, 128);
+  Hearbeat_TaskHandle = osThreadCreate(osThread(Hearbeat_Task), NULL);
 
-  /* definition and creation of Task_CAN_Rx */
-  osThreadDef(Task_CAN_Rx, StartTask04, osPriorityHigh, 0, 128);
-  Task_CAN_RxHandle = osThreadCreate(osThread(Task_CAN_Rx), NULL);
+  /* definition and creation of CAN_RX_Task */
+  osThreadDef(CAN_RX_Task, StartCanRxTask, osPriorityHigh, 0, 128);
+  CAN_RX_TaskHandle = osThreadCreate(osThread(CAN_RX_Task), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -140,76 +141,76 @@ void MX_FREERTOS_Init(void) {
 
 }
 
-/* USER CODE BEGIN Header_StartDefaultTask */
+/* USER CODE BEGIN Header_StartSensorTask */
 /**
-  * @brief  Function implementing the Task_Env_Proces thread.
+  * @brief  Function implementing the Sensor_Task thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void const * argument)
+/* USER CODE END Header_StartSensorTask */
+void StartSensorTask(void const * argument)
 {
-  /* USER CODE BEGIN StartDefaultTask */
+  /* USER CODE BEGIN StartSensorTask */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END StartDefaultTask */
+  /* USER CODE END StartSensorTask */
 }
 
-/* USER CODE BEGIN Header_StartTask02 */
+/* USER CODE BEGIN Header_StartCanTxTask */
 /**
-* @brief Function implementing the Task_CAN_Tx thread.
+* @brief Function implementing the CAN_TX_Task thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartTask02 */
-void StartTask02(void const * argument)
+/* USER CODE END Header_StartCanTxTask */
+void StartCanTxTask(void const * argument)
 {
-  /* USER CODE BEGIN StartTask02 */
+  /* USER CODE BEGIN StartCanTxTask */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END StartTask02 */
+  /* USER CODE END StartCanTxTask */
 }
 
-/* USER CODE BEGIN Header_StartTask03 */
+/* USER CODE BEGIN Header_StartHeartbeatTask */
 /**
-* @brief Function implementing the Task_Heartbeat thread.
+* @brief Function implementing the Hearbeat_Task thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartTask03 */
-void StartTask03(void const * argument)
+/* USER CODE END Header_StartHeartbeatTask */
+void StartHeartbeatTask(void const * argument)
 {
-  /* USER CODE BEGIN StartTask03 */
+  /* USER CODE BEGIN StartHeartbeatTask */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END StartTask03 */
+  /* USER CODE END StartHeartbeatTask */
 }
 
-/* USER CODE BEGIN Header_StartTask04 */
+/* USER CODE BEGIN Header_StartCanRxTask */
 /**
-* @brief Function implementing the Task_CAN_Rx thread.
+* @brief Function implementing the CAN_RX_Task thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartTask04 */
-void StartTask04(void const * argument)
+/* USER CODE END Header_StartCanRxTask */
+void StartCanRxTask(void const * argument)
 {
-  /* USER CODE BEGIN StartTask04 */
+  /* USER CODE BEGIN StartCanRxTask */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END StartTask04 */
+  /* USER CODE END StartCanRxTask */
 }
 
 /* Private application code --------------------------------------------------*/

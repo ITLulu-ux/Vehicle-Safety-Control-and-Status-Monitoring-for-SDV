@@ -48,6 +48,8 @@
 
 /* USER CODE END Variables */
 osThreadId Task_CAN_ProcesHandle;
+osThreadId Task_UART_ProceHandle;
+osThreadId Task_HeartbeatHandle;
 osMessageQId Queue_CAN_RxHandle;
 osSemaphoreId Sem_UART_RxHandle;
 
@@ -56,7 +58,9 @@ osSemaphoreId Sem_UART_RxHandle;
 
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void const * argument);
+void Start_Task_Can(void const * argument);
+void Start_Task_UART(void const * argument);
+void Start_Task_Heartbeat(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -114,8 +118,16 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* definition and creation of Task_CAN_Proces */
-  osThreadDef(Task_CAN_Proces, StartDefaultTask, osPriorityHigh, 0, 128);
+  osThreadDef(Task_CAN_Proces, Start_Task_Can, osPriorityHigh, 0, 128);
   Task_CAN_ProcesHandle = osThreadCreate(osThread(Task_CAN_Proces), NULL);
+
+  /* definition and creation of Task_UART_Proce */
+  osThreadDef(Task_UART_Proce, Start_Task_UART, osPriorityNormal, 0, 128);
+  Task_UART_ProceHandle = osThreadCreate(osThread(Task_UART_Proce), NULL);
+
+  /* definition and creation of Task_Heartbeat */
+  osThreadDef(Task_Heartbeat, Start_Task_Heartbeat, osPriorityLow, 0, 128);
+  Task_HeartbeatHandle = osThreadCreate(osThread(Task_Heartbeat), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -123,22 +135,58 @@ void MX_FREERTOS_Init(void) {
 
 }
 
-/* USER CODE BEGIN Header_StartDefaultTask */
+/* USER CODE BEGIN Header_Start_Task_Can */
 /**
   * @brief  Function implementing the Task_CAN_Proces thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void const * argument)
+/* USER CODE END Header_Start_Task_Can */
+void Start_Task_Can(void const * argument)
 {
-  /* USER CODE BEGIN StartDefaultTask */
+  /* USER CODE BEGIN Start_Task_Can */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END StartDefaultTask */
+  /* USER CODE END Start_Task_Can */
+}
+
+/* USER CODE BEGIN Header_Start_Task_UART */
+/**
+* @brief Function implementing the Task_UART_Proce thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_Start_Task_UART */
+void Start_Task_UART(void const * argument)
+{
+  /* USER CODE BEGIN Start_Task_UART */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END Start_Task_UART */
+}
+
+/* USER CODE BEGIN Header_Start_Task_Heartbeat */
+/**
+* @brief Function implementing the Task_Heartbeat thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_Start_Task_Heartbeat */
+void Start_Task_Heartbeat(void const * argument)
+{
+  /* USER CODE BEGIN Start_Task_Heartbeat */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END Start_Task_Heartbeat */
 }
 
 /* Private application code --------------------------------------------------*/

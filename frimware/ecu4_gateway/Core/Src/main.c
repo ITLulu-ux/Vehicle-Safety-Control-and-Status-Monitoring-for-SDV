@@ -47,7 +47,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+extern uint8_t uartRxBuffer[ 32 ]; // ESP32 제어 명령 수신 버퍼
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/

@@ -205,10 +205,7 @@ $RECYCLE.BIN/
 ### STM32CubeIDE & Eclipse (사용자 정의) ###
 .metadata/
 .settings/
-.project
-.cproject
 .buildpath
-**/*.launch
 **/*.tmp
 **/*.temp
 **/Debug/

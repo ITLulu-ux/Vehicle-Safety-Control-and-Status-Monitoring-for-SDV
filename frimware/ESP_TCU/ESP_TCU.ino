@@ -4,26 +4,24 @@
 #include <ArduinoJson.h>
 
 // ---------------------------------------------------------
-// 1. 설정 변수 (사용자 환경에 맞게 수정)
+// 설정 변수
 // ---------------------------------------------------------
 const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+const char* password = "11223344";
 const char* pi_server_url = "http://192.168.0.100:3000/api/telemetry"; // 라즈베리파이 수신 주소
 
 // 라즈베리파이로부터 제어 명령을 받기 위한 웹 서버 (포트 80)
 WebServer server(80); 
 
-// ---------------------------------------------------------
-// 2. FreeRTOS 핸들러 선언
-// ---------------------------------------------------------
+
+// FreeRTOS 핸들러 선언
 SemaphoreHandle_t uartRxSemaphore;
 QueueHandle_t rawDataQueue; // ECU4 -> ESP32 데이터 큐
 QueueHandle_t jsonTxQueue;  // JSON 변환 완료 큐
 QueueHandle_t uartTxQueue;  // ESP32 -> ECU4 제어 명령 큐
 
-// ---------------------------------------------------------
+
 // 3. 인터럽트 및 셋업 함수
-// ---------------------------------------------------------
 // UART 수신 인터럽트 (ECU4에서 데이터가 들어오면 세마포어 발생)
 void ARDUINO_ISR_ATTR uartRxISR() {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -36,7 +34,7 @@ void ARDUINO_ISR_ATTR uartRxISR() {
 void setup() {
     Serial.begin(115200); // 디버깅용 PC 시리얼
     
-    // ECU4와의 UART 통신 (Serial2 사용, 핀 16: RX, 17: TX로 가정)
+    // ECU4와의 UART 통신 (Serial2 사용, 핀 16: RX, 17: TX)
     Serial2.begin(115200, SERIAL_8N1, 16, 17);
     Serial2.onReceive(uartRxISR); // 수신 인터럽트 활성화 [6]
 
@@ -67,9 +65,7 @@ void loop() {
     vTaskDelete(NULL);
 }
 
-// ---------------------------------------------------------
-// 4. FreeRTOS 태스크 구현부
-// ---------------------------------------------------------
+// FreeRTOS 태스크 구현부
 
 // [Task 1] UART RX Task: ECU4 데이터 수신 [4, 6]
 void Task_UART_RX(void *pvParameters) {

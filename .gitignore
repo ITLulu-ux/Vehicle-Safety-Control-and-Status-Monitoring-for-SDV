@@ -413,3 +413,38 @@ pyrightconfig.json
 ####
 # linux
 *~
+
+##################################################
+# 추가 (ECU4 - STM32 / Eclipse)
+##################################################
+
+# Eclipse Workspace
+.metadata/
+
+# Eclipse Build Path
+.buildpath
+
+# 추가 빌드 결과물
+*.bak
+*.swp
+
+##################################################
+# 추가 (PI - Raspberry Pi / ESP32)
+##################################################
+
+# C/C++ Build
+*.bin
+*.lst
+
+# STM32 / ESP32 Build
+bin/
+obj/
+.atmelstart/
+Firmware/GD32*
+.pio/
+.compiler/
+build/
+CMakeLists.txt.user
+
+# macOS
+.DS_Store

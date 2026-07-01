@@ -9,7 +9,7 @@
 #ifndef INC_CAN_COMM_H_
 #define INC_CAN_COMM_H_
 
-// #include "main.h"
+#include "main.h"
 
 // 엑셀 명세 기반 CAN ID 매핑
 #define CAN_ID_ECU1_ENV      0x300

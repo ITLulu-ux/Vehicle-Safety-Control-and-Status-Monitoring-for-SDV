@@ -94,7 +94,7 @@ osThreadId_t Task_CAN_RXHandle;
 const osThreadAttr_t Task_CAN_RX_attributes = {
   .name = "Task_CAN_RX",
   .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityRealtime,
+  .priority = (osPriority_t) osPriorityHigh,
 };
 /* Definitions for Task_LED */
 osThreadId_t Task_LEDHandle;
@@ -117,19 +117,26 @@ const osThreadAttr_t Task_Heartbeat_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for Task_Control */
-osThreadId_t Task_ControlHandle;
-const osThreadAttr_t Task_Control_attributes = {
-  .name = "Task_Control",
-  .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityHigh1,
-};
-/* Definitions for Task_DTC_Log */
-osThreadId_t Task_DTC_LogHandle;
-const osThreadAttr_t Task_DTC_Log_attributes = {
-  .name = "Task_DTC_Log",
-  .stack_size = 256 * 4,
+/* Definitions for Task_Risk */
+osThreadId_t Task_RiskHandle;
+const osThreadAttr_t Task_Risk_attributes = {
+  .name = "Task_Risk",
+  .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityHigh,
+};
+/* Definitions for Task_Brake */
+osThreadId_t Task_BrakeHandle;
+const osThreadAttr_t Task_Brake_attributes = {
+  .name = "Task_Brake",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for Task_Wiper */
+osThreadId_t Task_WiperHandle;
+const osThreadAttr_t Task_Wiper_attributes = {
+  .name = "Task_Wiper",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for Queue_CAN_RX */
 osMessageQueueId_t Queue_CAN_RXHandle;
@@ -140,6 +147,31 @@ const osMessageQueueAttr_t Queue_CAN_RX_attributes = {
 osMessageQueueId_t Queue_DTCHandle;
 const osMessageQueueAttr_t Queue_DTC_attributes = {
   .name = "Queue_DTC"
+};
+/* Definitions for vehicleMutex */
+osMutexId_t vehicleMutexHandle;
+const osMutexAttr_t vehicleMutex_attributes = {
+  .name = "vehicleMutex"
+};
+/* Definitions for controlMutex */
+osMutexId_t controlMutexHandle;
+const osMutexAttr_t controlMutex_attributes = {
+  .name = "controlMutex"
+};
+/* Definitions for Mutex_RiskData */
+osMutexId_t Mutex_RiskDataHandle;
+const osMutexAttr_t Mutex_RiskData_attributes = {
+  .name = "Mutex_RiskData"
+};
+/* Definitions for Mutex_I2C */
+osMutexId_t Mutex_I2CHandle;
+const osMutexAttr_t Mutex_I2C_attributes = {
+  .name = "Mutex_I2C"
+};
+/* Definitions for CANRXSemaphore */
+osSemaphoreId_t CANRXSemaphoreHandle;
+const osSemaphoreAttr_t CANRXSemaphore_attributes = {
+  .name = "CANRXSemaphore"
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -152,8 +184,9 @@ void StartCANRXTask(void *argument);
 void StartLEDTask(void *argument);
 void StartCANTXTask(void *argument);
 void StartHeartbeatTask(void *argument);
-void StartControlTask(void *argument);
-void StartDTCLogTask(void *argument);
+void StartRiskTask(void *argument);
+void StartBrakeTask(void *argument);
+void StartWiperTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -166,10 +199,26 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
+  /* Create the mutex(es) */
+  /* creation of vehicleMutex */
+  vehicleMutexHandle = osMutexNew(&vehicleMutex_attributes);
+
+  /* creation of controlMutex */
+  controlMutexHandle = osMutexNew(&controlMutex_attributes);
+
+  /* creation of Mutex_RiskData */
+  Mutex_RiskDataHandle = osMutexNew(&Mutex_RiskData_attributes);
+
+  /* creation of Mutex_I2C */
+  Mutex_I2CHandle = osMutexNew(&Mutex_I2C_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
     // 만약 CubeMX에서 생성 안 되어 있다면 여기서 직접 생성 가능
   /* USER CODE END RTOS_MUTEX */
+
+  /* Create the semaphores(s) */
+  /* creation of CANRXSemaphore */
+  CANRXSemaphoreHandle = osSemaphoreNew(1, 0, &CANRXSemaphore_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -203,11 +252,14 @@ void MX_FREERTOS_Init(void) {
   /* creation of Task_Heartbeat */
   Task_HeartbeatHandle = osThreadNew(StartHeartbeatTask, NULL, &Task_Heartbeat_attributes);
 
-  /* creation of Task_Control */
-  Task_ControlHandle = osThreadNew(StartControlTask, NULL, &Task_Control_attributes);
+  /* creation of Task_Risk */
+  Task_RiskHandle = osThreadNew(StartRiskTask, NULL, &Task_Risk_attributes);
 
-  /* creation of Task_DTC_Log */
-  Task_DTC_LogHandle = osThreadNew(StartDTCLogTask, NULL, &Task_DTC_Log_attributes);
+  /* creation of Task_Brake */
+  Task_BrakeHandle = osThreadNew(StartBrakeTask, NULL, &Task_Brake_attributes);
+
+  /* creation of Task_Wiper */
+  Task_WiperHandle = osThreadNew(StartWiperTask, NULL, &Task_Wiper_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
     // 각 태스크들은 CubeMX 툴에 의해 자동으로 osThreadNew로 등록되어 올라옵니다.
@@ -308,40 +360,58 @@ void StartHeartbeatTask(void *argument)
   /* USER CODE END StartHeartbeatTask */
 }
 
-/* USER CODE BEGIN Header_StartControlTask */
+/* USER CODE BEGIN Header_StartRiskTask */
 /**
-* @brief Function implementing the Task_Control thread.
+* @brief Function implementing the Task_Risk thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartControlTask */
-void StartControlTask(void *argument)
+/* USER CODE END Header_StartRiskTask */
+void StartRiskTask(void *argument)
 {
-  /* USER CODE BEGIN StartControlTask */
+  /* USER CODE BEGIN StartRiskTask */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END StartControlTask */
+  /* USER CODE END StartRiskTask */
 }
 
-/* USER CODE BEGIN Header_StartDTCLogTask */
+/* USER CODE BEGIN Header_StartBrakeTask */
 /**
-* @brief Function implementing the Task_DTC_Log thread.
+* @brief Function implementing the Task_Brake thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartDTCLogTask */
-void StartDTCLogTask(void *argument)
+/* USER CODE END Header_StartBrakeTask */
+void StartBrakeTask(void *argument)
 {
-  /* USER CODE BEGIN StartDTCLogTask */
+  /* USER CODE BEGIN StartBrakeTask */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END StartDTCLogTask */
+  /* USER CODE END StartBrakeTask */
+}
+
+/* USER CODE BEGIN Header_StartWiperTask */
+/**
+* @brief Function implementing the Task_Wiper thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartWiperTask */
+void StartWiperTask(void *argument)
+{
+  /* USER CODE BEGIN StartWiperTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartWiperTask */
 }
 
 /* Private application code --------------------------------------------------*/
@@ -351,7 +421,7 @@ void StartDTCLogTask(void *argument)
   * @brief  1등: CAN 수신 처리 태스크 (osPriorityRealtime)
   * 인터럽트가 던져준 수신 큐에서 데이터를 빼서 UDS 명령 및 데이터 파싱을 수행합니다.
   */
-void StartTask_CAN_RX(void *argument)
+/*void StartTask_CAN_RX(void *argument)
 {
     CAN_Rx_Format_t rxMsg;
     for(;;)
@@ -407,7 +477,7 @@ void StartTask_CAN_RX(void *argument)
   * @brief  2등: 실시간 차량 안전 제어 태스크 (osPriorityHigh1)
   * 위험도 상태에 맞춰 브레이크 및 와이퍼 서보모터(PWM)를 즉각 제어합니다.
   */
-void StartTask_Control(void *argument)
+/*void StartTask_Control(void *argument)
 {
     uint8_t local_risk = RISK_SAFE;
     for(;;)
@@ -443,7 +513,7 @@ void StartTask_Control(void *argument)
   * @brief  3등: UDS 진단 로그 기록 태스크 (osPriorityHigh)
   * DANGER 상황이나 시스템 에러 발생 시 DTC 결함 코드를 생성하여 큐에 보관/기록합니다.
   */
-void StartTask_DTC_Log(void *argument)
+/*void StartTask_DTC_Log(void *argument)
 {
     uint32_t dtc_code = 0;
     for(;;)
@@ -461,7 +531,7 @@ void StartTask_DTC_Log(void *argument)
   * @brief  4등: 시각 경고 LED 태스크 (osPriorityNormal)
   * 위험도 단계를 읽어와 운전자에게 직관적인 LED 알림을 쏩니다.
   */
-void StartTask_LED(void *argument)
+/*void StartTask_LED(void *argument)
 {
     uint8_t local_risk = RISK_SAFE;
     for(;;)
@@ -489,7 +559,7 @@ void StartTask_LED(void *argument)
   * @brief  4등(공동): 일반 데이터 수신 보고 및 LCD 출력 (osPriorityNormal)
   * I2C LCD 리소스를 선점당하지 않도록 Mutex로 묶어 화면을 200ms 주기로 갱신합니다.
   */
-void StartTask_CAN_TX(void *argument)
+/*void StartTask_CAN_TX(void *argument)
 {
     for(;;)
     {
@@ -507,7 +577,7 @@ void StartTask_CAN_TX(void *argument)
   * @brief  5등: 시스템 생존용 하트비트 송신 태스크 (osPriorityLow)
   * 모든 메인 중요 제어가 끝나고 시스템이 안전할 때, 1초 주기로 생존 신호(0x703)를 날립니다.
   */
-void StartTask_Heartbeat(void *argument)
+/*void StartTask_Heartbeat(void *argument)
 {
     // CAN 하트비트 메시지 헤더 뼈대 구성
     TxHeader.StdId = 0x703;      // 엑셀 명세 기반 ECU3 Heartbeat ID
@@ -528,7 +598,7 @@ void StartTask_Heartbeat(void *argument)
 
         osDelay(1000); // 1초(1000ms) 주기 엄수
     }
-}
+}*/
 
 /* USER CODE END Application */
 

@@ -6,7 +6,7 @@
 // ---------------------------------------------------------
 // 설정 변수
 // ---------------------------------------------------------
-const char* ssid = "AndriodHotspot1538";
+const char* ssid = "AndroidHotspot1538";
 const char* password = "11223344";
 const char* pi_server_url = "http://192.168.0.100:3000/api/telemetry"; // 라즈베리파이 수신 주소
 
@@ -20,7 +20,7 @@ QueueHandle_t jsonTxQueue;  // JSON 변환 완료 큐
 QueueHandle_t uartTxQueue;  // ESP32 -> ECU4 제어 명령 큐
 
 // ---------------------------------------------------------
-// 인터럽트 및 셋업 함수
+// 인터럽트 함수
 // ---------------------------------------------------------
 void ARDUINO_ISR_ATTR uartRxISR() {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -30,14 +30,19 @@ void ARDUINO_ISR_ATTR uartRxISR() {
     }
 }
 
+// ---------------------------------------------------------
+// 셋업 함수 (초기화 순서 수정 완료)
+// ---------------------------------------------------------
 void setup() {
-    Serial.begin(115200); // 디버깅용 PC 시리얼
+    Serial.begin(9600); // 디버깅용 PC 시리얼
     
-    // ECU4와의 UART 통신 (Serial2 사용, 핀 16: RX, 17: TX)
-    Serial2.begin(115200, SERIAL_8N1, 16, 17);
-    Serial2.onReceive(uartRxISR); // 수신 인터럽트 활성화
+    // 1. FreeRTOS 객체(세마포어, 큐)를 가장 먼저 생성! (에러 방지)
+    uartRxSemaphore = xSemaphoreCreateBinary();
+    rawDataQueue = xQueueCreate(10, 64); // 64바이트 길이의 Raw 문자열 10개
+    jsonTxQueue = xQueueCreate(5, 256);  // 256바이트 길이의 JSON 문자열 5개
+    uartTxQueue = xQueueCreate(5, 32);   // 32바이트 길이의 하향 제어 문자열 5개
 
-    // Wi-Fi 연결
+    // 2. Wi-Fi 연결 진행
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
@@ -45,18 +50,16 @@ void setup() {
     }
     Serial.println("\nWi-Fi Connected!");
 
-    // FreeRTOS 객체 생성
-    uartRxSemaphore = xSemaphoreCreateBinary();
-    rawDataQueue = xQueueCreate(10, 64); // 64바이트 길이의 Raw 문자열 10개
-    jsonTxQueue = xQueueCreate(5, 256);  // 256바이트 길이의 JSON 문자열 5개
-    uartTxQueue = xQueueCreate(5, 32);   // 32바이트 길이의 하향 제어 문자열 5개
-
-    // FreeRTOS Task 생성
+    // 3. FreeRTOS Task 생성
     xTaskCreatePinnedToCore(Task_UART_RX, "UART_RX", 4096, NULL, 3, NULL, 1); // High
     xTaskCreatePinnedToCore(Task_HTTP_RX, "HTTP_RX", 4096, NULL, 3, NULL, 1); // High
     xTaskCreatePinnedToCore(Task_JSON,    "JSON_CVT", 4096, NULL, 2, NULL, 1); // Normal
     xTaskCreatePinnedToCore(Task_HTTP_TX, "HTTP_TX", 4096, NULL, 2, NULL, 1); // Normal
     xTaskCreatePinnedToCore(Task_UART_TX, "UART_TX", 4096, NULL, 2, NULL, 1); // Normal
+
+    // 4. 모든 준비가 끝난 후, 맨 마지막에 UART 통신 및 인터럽트 활성화!
+    Serial2.begin(115200, SERIAL_8N1, 16, 17);
+    Serial2.onReceive(uartRxISR); 
 }
 
 void loop() {
@@ -68,9 +71,9 @@ void loop() {
 // FreeRTOS 태스크 구현부
 // ---------------------------------------------------------
 
-// [Task 1] UART RX Task: ECU4 데이터 수신
+// [Task 1] UART RX Task: ECU4 데이터 수신 내부 코드 수정
 void Task_UART_RX(void *pvParameters) {
-    char rxBuffer[64]; // [수정] 큐 사이즈에 맞게 버퍼 크기 증가
+    char rxBuffer[64];
     int idx = 0;
     
     for (;;) {
@@ -79,9 +82,13 @@ void Task_UART_RX(void *pvParameters) {
                 char c = Serial2.read();
                 rxBuffer[idx++] = c;
                 
-                // 개행문자('\n')를 만나거나 버퍼 한계 도달 시 큐로 전달
                 if (c == '\n' || idx >= 63) {
-                    rxBuffer[idx] = '\0'; // 문자열 종단 처리
+                    rxBuffer[idx] = '\0';
+                    
+                    // [디버깅 추가] 데이터가 들어오면 바로 시리얼 모니터에 출력
+                    Serial.print("Received from STM32: ");
+                    Serial.println(rxBuffer); 
+                    
                     xQueueSend(rawDataQueue, &rxBuffer, portMAX_DELAY);
                     idx = 0;
                 }
@@ -92,8 +99,8 @@ void Task_UART_RX(void *pvParameters) {
 
 // [Task 2] JSON Task: Raw 문자열 -> JSON 포맷 변환 (ECU4 GW 포맷 호환)
 void Task_JSON(void *pvParameters) {
-    char rawString[64]; // [수정] 큐에서 받을 버퍼
-    char jsonString[256]; // [수정] 직렬화된 JSON을 담을 문자열 버퍼
+    char rawString[64];
+    char jsonString[256]; 
     
     StaticJsonDocument<256> doc; 
 
@@ -103,13 +110,13 @@ void Task_JSON(void *pvParameters) {
             
             int speed, dist, temp, humi, lux, risk, brake, wiper, led, hb1, hb2, hb3;
             
-            // [수정] ECU4의 "GW,..." 프로토콜에 맞게 파싱
+            // ECU4의 "GW,..." 프로토콜에 맞게 파싱
             if (strncmp(rawString, "GW", 2) == 0) {
                 int parsed = sscanf(rawString, "GW,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
                                     &speed, &dist, &temp, &humi, &lux, &risk, 
                                     &brake, &wiper, &led, &hb1, &hb2, &hb3);
                 
-                if (parsed == 12) { // 12개의 데이터가 정상적으로 파싱되었는지 확인
+                if (parsed == 12) { 
                     doc["spd"] = speed;
                     doc["dist"] = dist;
                     doc["temp"] = temp;
@@ -137,7 +144,7 @@ void Task_JSON(void *pvParameters) {
 
 // [Task 3] HTTP TX Task: JSON 데이터를 라즈베리파이로 송신
 void Task_HTTP_TX(void *pvParameters) {
-    char jsonString[256]; // [수정] 큐에서 받을 버퍼
+    char jsonString[256];
     HTTPClient http;
     
     for (;;) {
@@ -150,6 +157,7 @@ void Task_HTTP_TX(void *pvParameters) {
                 
                 if (httpResponseCode > 0) {
                     Serial.printf("HTTP POST Success: %d\n", httpResponseCode);
+                    Serial.println(jsonString); // 디버깅용 출력
                 } else {
                     Serial.printf("HTTP POST Failed: %s\n", http.errorToString(httpResponseCode).c_str());
                 }
@@ -159,7 +167,7 @@ void Task_HTTP_TX(void *pvParameters) {
     }
 }
 
-// [Task 4] HTTP RX Task: 라즈베리파이의 제어/OTA 명령 수신
+// [Task 4] HTTP RX Task: 라즈베리파이의 제어/OTA 명령 수신 (람다 문법 수정 완료)
 void Task_HTTP_RX(void *pvParameters) {
     server.on("/api/control", HTTP_POST, []() {
         if (server.hasArg("plain")) {
@@ -172,7 +180,7 @@ void Task_HTTP_RX(void *pvParameters) {
             int param1 = doc["param1"];
             int param2 = doc["param2"];
             
-            char txString[32]; // [수정] 넉넉한 버퍼 크기
+            char txString[32];
             // ECU4와 약속한 커맨드 포맷 "CMD,ID,param1,param2"
             sprintf(txString, "CMD,%d,%d,%d\n", cmdId, param1, param2);
             
@@ -194,7 +202,7 @@ void Task_HTTP_RX(void *pvParameters) {
 
 // [Task 5] UART TX Task: 파싱된 제어 명령을 ECU4로 하달
 void Task_UART_TX(void *pvParameters) {
-    char txString[32]; // [수정] 큐에서 받을 버퍼
+    char txString[32];
     
     for (;;) {
         if (xQueueReceive(uartTxQueue, &txString, portMAX_DELAY) == pdTRUE) {

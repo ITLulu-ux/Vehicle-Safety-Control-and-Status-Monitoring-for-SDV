@@ -23,9 +23,13 @@
 #include "main.h"
 #include "cmsis_os.h"
 
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "sensor_task.h"
+#include "can_task.h"
+#include "heartbeat_task.h"
+#include "sensor_data.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -99,10 +103,11 @@ void MX_FREERTOS_Init(void) {
   /* Create the semaphores(s) */
   /* definition and creation of CAN_RX_BinarySemphore */
   osSemaphoreDef(CAN_RX_BinarySemphore);
-  CAN_RX_BinarySemphoreHandle = osSemaphoreCreate(osSemaphore(CAN_RX_BinarySemphore), 1);
+  CAN_RX_BinarySemphoreHandle = osSemaphoreCreate(osSemaphore(CAN_RX_BinarySemphore), 0);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
+  canRxSemaphore = (SemaphoreHandle_t)CAN_RX_BinarySemphoreHandle;
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* USER CODE BEGIN RTOS_TIMERS */
@@ -111,20 +116,21 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* definition and creation of SensorQueue */
-  osMessageQDef(SensorQueue, 5, uint16_t);
+  osMessageQDef(SensorQueue, 1, SensorData_t);
   SensorQueueHandle = osMessageCreate(osMessageQ(SensorQueue), NULL);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
+  sensorQueue = (QueueHandle_t)SensorQueueHandle;
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
   /* definition and creation of Sensor_Task */
-  osThreadDef(Sensor_Task, StartSensorTask, osPriorityNormal, 0, 128);
+  osThreadDef(Sensor_Task, StartSensorTask, osPriorityNormal, 0, 256);
   Sensor_TaskHandle = osThreadCreate(osThread(Sensor_Task), NULL);
 
   /* definition and creation of CAN_TX_Task */
-  osThreadDef(CAN_TX_Task, StartCanTxTask, osPriorityNormal, 0, 128);
+  osThreadDef(CAN_TX_Task, StartCanTxTask, osPriorityAboveNormal, 0, 256);
   CAN_TX_TaskHandle = osThreadCreate(osThread(CAN_TX_Task), NULL);
 
   /* definition and creation of Hearbeat_Task */
@@ -132,7 +138,7 @@ void MX_FREERTOS_Init(void) {
   Hearbeat_TaskHandle = osThreadCreate(osThread(Hearbeat_Task), NULL);
 
   /* definition and creation of CAN_RX_Task */
-  osThreadDef(CAN_RX_Task, StartCanRxTask, osPriorityHigh, 0, 128);
+  osThreadDef(CAN_RX_Task, StartCanRxTask, osPriorityHigh, 0, 256);
   CAN_RX_TaskHandle = osThreadCreate(osThread(CAN_RX_Task), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -152,10 +158,7 @@ void StartSensorTask(void const * argument)
 {
   /* USER CODE BEGIN StartSensorTask */
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+  SensorTask(argument);
   /* USER CODE END StartSensorTask */
 }
 
@@ -170,10 +173,7 @@ void StartCanTxTask(void const * argument)
 {
   /* USER CODE BEGIN StartCanTxTask */
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+  CanTxTask(argument);
   /* USER CODE END StartCanTxTask */
 }
 
@@ -188,10 +188,7 @@ void StartHeartbeatTask(void const * argument)
 {
   /* USER CODE BEGIN StartHeartbeatTask */
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+  HeartbeatTask(argument);
   /* USER CODE END StartHeartbeatTask */
 }
 
@@ -206,10 +203,7 @@ void StartCanRxTask(void const * argument)
 {
   /* USER CODE BEGIN StartCanRxTask */
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+  CanRxTask(argument);
   /* USER CODE END StartCanRxTask */
 }
 

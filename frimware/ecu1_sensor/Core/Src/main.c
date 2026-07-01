@@ -27,7 +27,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "can_comm.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -95,9 +95,15 @@ int main(void)
   MX_CAN1_Init();
   MX_I2C1_Init();
   MX_USART2_UART_Init();
-  MX_TIM2_Init();
-  /* USER CODE BEGIN 2 */
+  MX_TIM2_Init(); //DHT11 = TIM2사용
 
+  /* USER CODE BEGIN 2 */
+  if (HAL_TIM_Base_Start(&htim2) != HAL_OK)
+  {
+      Error_Handler();
+  } // 이거없으면 DHT11_Read() 정상동작X
+
+  CAN_Init(); // Task가 시작되기 전에 CAN 준비
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in cmsis_os2.c) */

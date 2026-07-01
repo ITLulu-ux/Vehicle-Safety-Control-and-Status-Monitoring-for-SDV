@@ -1,0 +1,86 @@
+ECU1 CubeMX 설정 (수정본)
+
+1. RCC
+
+CubeMX 설정 위치 Pinout & Configuration → System Core → RCC
+
+설정 - High Speed Clock(HSE) : Crystal/Ceramic Resonator
+
+======================================================== 2. SYS
+——————————————————– CubeMX 설정 위치 System Core → SYS
+
+설정 - Debug : Serial Wire
+
+======================================================== 3. GPIO (DHT11)
+——————————————————– CubeMX 설정 위치 Pinout → PB5 클릭 → GPIO_Output
+
+설정 - PB5 : GPIO_Output
+
+설명 - DHT11은 통신 과정에서 Output/Input 모드를 전환하므로 초기값은
+Output으로 설정한다.
+
+======================================================== 4. I2C1
+(BH1750) ——————————————————– CubeMX 설정 위치 Connectivity → I2C1 → I2C
+
+자동 핀 설정 - PB8 : I2C1_SCL - PB9 : I2C1_SDA
+
+Parameter Settings - I2C Speed Mode : Standard Mode - Clock Speed :
+100000 (100kHz)
+
+설명 - BH1750는 100kHz로도 충분하며 프로젝트에서는 안정성을 위해
+Standard Mode를 사용한다.
+
+======================================================== 5. CAN1
+(SN65HVD230) ——————————————————– CubeMX 설정 위치 Connectivity → CAN1 →
+Activated
+
+핀 설정 - PA11 : CAN_RX - PA12 : CAN_TX
+
+Parameter Settings - Mode : Normal - Prescaler : 6 - Time Segment 1 : 11
+TQ - Time Segment 2 : 2 TQ - SJW : 1 TQ
+
+(42MHz APB1 기준 약 500kbps)
+
+======================================================== 6. TIM2
+——————————————————– CubeMX 설정 위치 Timers → TIM2 → Internal Clock
+
+Parameter Settings - Prescaler : 83 - Counter Period : 65535
+
+설명 - DHT11의 1us Delay 생성을 위해 사용한다.
+
+======================================================== 7. FreeRTOS
+——————————————————– Interface - CMSIS_V2
+
+Task 
+- CAN RX Task : High 
+- Sensor Task : Normal 
+- CAN TX Task : Normal 
+- Heartbeat Task : Low
+
+Queue - SensorQueue - Item Size : sizeof(SensorData_t) - Length : 5
+
+※ Queue_CAN_TX, Queue_CAN_RX는 사용하지 않는다.
+
+Binary Semaphore
+
+생성 위치 FreeRTOS → Timers and Semaphores → Binary Semaphores → Add
+
+생성 - CAN_RX_BinarySemaphore - Allocation : Dynamic
+
+설명 - CAN RX Interrupt에서 Give - CAN RX Task에서 Take - OTA, Reset,
+설정 변경 명령 처리
+
+======================================================== 8. NVIC
+——————————————————– System Core → NVIC
+
+체크 - CAN1 RX0 interrupt - TIM2 global interrupt
+
+(SysTick은 FreeRTOS에서 자동 설정)
+
+======================================================== 9. Clock
+Configuration ——————————————————– - SYSCLK : 84MHz - APB1 : 42MHz - APB2
+: 84MHz
+
+======================================================== 최종 Peripheral
+——————————————————– - GPIO : DHT11 - I2C1 : BH1750 - CAN1 : SN65HVD230 -
+TIM2 : 1us Delay - FreeRTOS : Task, Queue, Binary Semaphore 관리

@@ -25,7 +25,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "can_comm.h"
+#include "uart_comm.h"
+#include "heartbeat.h"
+#include "semphr.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,7 +48,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+SemaphoreHandle_t gatewayDataMutex = NULL;
 /* USER CODE END Variables */
 osThreadId Task_CAN_ProcesHandle;
 osThreadId Task_UART_ProceHandle;
@@ -91,7 +94,7 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
-  /* add mutexes, ... */
+	gatewayDataMutex = xSemaphoreCreateMutex();
   /* USER CODE END RTOS_MUTEX */
 
   /* Create the semaphores(s) */
@@ -145,11 +148,15 @@ void MX_FREERTOS_Init(void) {
 void Start_Task_Can(void const * argument)
 {
   /* USER CODE BEGIN Start_Task_Can */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+	osEvent event;
+	  for(;;)
+	  {
+	    // CAN RX 인터럽트 발생 시까지 무한 대기
+	    event = osMessageGet(Queue_CAN_RxHandle, osWaitForever);
+	    if(event.status == osEventMessage) {
+	        CAN_ProcessRxMessage();
+	    }
+	  }
   /* USER CODE END Start_Task_Can */
 }
 
@@ -163,11 +170,15 @@ void Start_Task_Can(void const * argument)
 void Start_Task_UART(void const * argument)
 {
   /* USER CODE BEGIN Start_Task_UART */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+	for(;;)
+	  {
+	    // 100ms마다 라즈베리파이로 데이터 전송, 그 사이에 명령이 오면 수신 파싱
+	    if(osSemaphoreWait(Sem_UART_RxHandle, 100) == osOK) {
+	        UART_ProcessRxMessage();
+	    } else {
+	        UART_SendGatewayData();
+	    }
+	  }
   /* USER CODE END Start_Task_UART */
 }
 
@@ -182,10 +193,11 @@ void Start_Task_Heartbeat(void const * argument)
 {
   /* USER CODE BEGIN Start_Task_Heartbeat */
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+	for(;;)
+	  {
+	    CAN_SendHeartbeat();
+	    osDelay(1000);
+	  }
   /* USER CODE END Start_Task_Heartbeat */
 }
 

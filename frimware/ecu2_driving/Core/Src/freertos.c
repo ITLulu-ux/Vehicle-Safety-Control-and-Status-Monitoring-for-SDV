@@ -25,13 +25,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "i2c_lcd.h"
 #include "driving_data.h"
-#include "can.h"
-#include <stdio.h>
-#include <string.h>
-
-extern I2C_HandleTypeDef hi2c1;
+#include "adc_speed.h"
+#include "ultrasonic.h"
+#include "can_manager.h"
+#include "lcd_manager.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,15 +49,8 @@ extern I2C_HandleTypeDef hi2c1;
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-extern I2C_LCD_HandleTypeDef lcd; // main.c에 있는 LCD 변수 가져오기
-extern ADC_HandleTypeDef hadc1;
-extern UART_HandleTypeDef huart2;
-
-DrivingData_t drivingData = {0, 0, 0};
-
-uint16_t ultrasonic_distance = 0;   // 초음파 거리 저장용
-
-// 3. Mutex 핸들 (데이터 동시 접근 방지용)
+DrivingData_t drivingData = {0, 0};
+uint16_t ultrasonic_distance = 0;
 osMutexId drivingMutexHandle;
 /* USER CODE END Variables */
 
@@ -174,35 +165,10 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
-  char lcd_buf[32];       // 문자열 포맷팅을 위한 버퍼 (16x2 LCD 기준)
-  char uart_buf[64];  // 데이터 출력을 위한 버퍼
-
   /* Infinite loop */
   for(;;)
   {
-	// 1. 센서 데이터를 출력
-	sprintf(uart_buf, "Speed: %3d km/h | Dist: %3d cm\r\n", drivingData.speed, drivingData.distance);
-	// 2. UART로 전송
-	HAL_UART_Transmit(&huart2, (uint8_t*)uart_buf, strlen(uart_buf), 100);
-
-	// 1. I2C 버스 독점권을 얻기 위해 Mutex 대기
-	if (osMutexWait(Mutex_I2CHandle, osWaitForever) == osOK)
-	{
-		// 가변저항(속도) 데이터 출력
-		lcd_gotoxy(&lcd, 0, 0);
-		sprintf(lcd_buf, "Speed: %3d km/h", drivingData.speed);
-		lcd_puts(&lcd, lcd_buf);
-
-		// 초음파 센서(거리) 데이터 출력
-		lcd_gotoxy(&lcd, 0, 1);
-		sprintf(lcd_buf, "Dist : %3d cm  ", drivingData.distance);
-		lcd_puts(&lcd, lcd_buf);
-
-		// 2. 제어가 끝나면 반드시 Mutex 해제
-		osMutexRelease(Mutex_I2CHandle);
-	}
-	// 화면 갱신 주기
-	  osDelay(500);
+	  LCD_Task_Run();
   }
   /* USER CODE END StartDefaultTask */
 }
@@ -217,29 +183,10 @@ void StartDefaultTask(void const * argument)
 void StartTask02(void const * argument)
 {
   /* USER CODE BEGIN StartTask02 */
-  CAN_RxHeaderTypeDef RxHeader;
-  uint8_t RxData[8];
   /* Infinite loop */
   for(;;)
   {
-	// 1. 수신 버퍼(FIFO0)에 메시지가 들어왔는지 확인
-	if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0)
-	{
-		// 2. 메시지 꺼내오기
-		if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
-		{
-			// 3. 수신된 CAN ID에 따라 동작 분류 (명세서 기준)
-			if (RxHeader.StdId == 0x010) // 예: 게이트웨이 긴급 명령 (필요 시)
-			{
-				// 긴급 명령 처리 로직
-			}
-			else if (RxHeader.StdId == 0x400) // 예: OTA 펌웨어 데이터 (가정)
-			{
-				// OTA 처리 로직
-			}
-		}
-	}
-    osDelay(10);
+	  CAN_RX_Task_Run();
   }
   /* USER CODE END StartTask02 */
 }
@@ -258,23 +205,7 @@ void StartTask03(void const * argument)
 
   for(;;)
   {
-	// 1. 초음파 센서 Trigger 핀에 High 펄스 인가
-	HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_SET);
-
-	// 2. 10us 이상 유지해야 하므로 FreeRTOS 최소 지연시간인 1ms 대기
-	osDelay(1);
-
-	// 3. Trigger 핀을 다시 Low로 변경
-	HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_RESET);
-
-	osDelay(50);
-
-	// 4. 거리 구조체 업데이트
-	osMutexWait(drivingMutexHandle, osWaitForever);
-	drivingData.distance = ultrasonic_distance;
-	osMutexRelease(drivingMutexHandle);
-
-    osDelay(50);
+	  Distance_Task_Run();
   }
   /* USER CODE END StartTask03 */
 }
@@ -292,22 +223,7 @@ void StartTask04(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-	// 1. ADC 변환 시작
-	HAL_ADC_Start(&hadc1);
-
-	// 2. 변환이 완료될 때까지 대기 (최대 10ms)
-	if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK) {
-		// 3. 0~4095의 아날로그 값을 읽어와 0~150km/h로 스케일링(변환)
-		uint32_t adc_val = HAL_ADC_GetValue(&hadc1);
-		uint8_t current_speed = (uint8_t)((adc_val * 150) / 4095);
-
-		// 4. Mutex로 잠그고 공유 구조체 업데이트
-		osMutexWait(drivingMutexHandle, osWaitForever);
-		drivingData.speed = current_speed;
-		osMutexRelease(drivingMutexHandle);
-	}
-
-    osDelay(100);
+	  Speed_Task_Run();
   }
   /* USER CODE END StartTask04 */
 }
@@ -322,38 +238,10 @@ void StartTask04(void const * argument)
 void StartTask05(void const * argument)
 {
   /* USER CODE BEGIN StartTask05 */
-  CAN_TxHeaderTypeDef TxHeader;
-  uint8_t TxData[3]; // DLC=3 (속도 1바이트 + 거리 2바이트)
-  uint32_t TxMailbox;
-
-  TxHeader.StdId = 0x200;
-  TxHeader.ExtId = 0;
-  TxHeader.IDE = CAN_ID_STD;
-  TxHeader.RTR = CAN_RTR_DATA;
-  TxHeader.DLC = 3;
-  TxHeader.TransmitGlobalTime = DISABLE;
-
   /* Infinite loop */
   for(;;)
   {
-	// 1. Mutex를 통해 데이터 안전하게 복사
-	osMutexWait(drivingMutexHandle, osWaitForever);
-
-	TxData[0] = (uint8_t)drivingData.speed;	// Byte 0: 속도
-	TxData[1] = (uint8_t)(drivingData.distance & 0xFF);         // Byte 1: 거리 하위 8비트
-	TxData[2] = (uint8_t)((drivingData.distance >> 8) & 0xFF);  // Byte 2: 거리 상위 8비트
-
-	osMutexRelease(drivingMutexHandle);
-
-	// 2. CAN 송신 (인터럽트 확인)
-	if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) > 0)
-	{
-		if (HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox) != HAL_OK) {
-			// 필요시 에러 처리 (예: Error_Handler())
-		}
-	}
-
-	osDelay(100); // 100ms 주기 송신
+	  CAN_TX_Task_Run();
   }
   /* USER CODE END StartTask05 */
 }
@@ -368,27 +256,10 @@ void StartTask05(void const * argument)
 void StartTask06(void const * argument)
 {
   /* USER CODE BEGIN StartTask06 */
-  CAN_TxHeaderTypeDef HeartbeatHeader;
-  uint8_t HeartbeatData[1] = {0x01}; // 0x01: 정상 작동 중
-  uint32_t TxMailbox;
-
-  // 헤더 설정 (Heartbeat 메시지는 ID 0x702 사용)
-  HeartbeatHeader.StdId = 0x702;
-  HeartbeatHeader.ExtId = 0;
-  HeartbeatHeader.IDE = CAN_ID_STD;
-  HeartbeatHeader.RTR = CAN_RTR_DATA;
-  HeartbeatHeader.DLC = 1; // 1바이트만 전송
-  HeartbeatHeader.TransmitGlobalTime = DISABLE;
-
   /* Infinite loop */
   for(;;)
   {
-	// 메일박스에 여유가 있을 때만 전송
-	  if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) > 0) {
-		  HAL_CAN_AddTxMessage(&hcan1, &HeartbeatHeader, HeartbeatData, &TxMailbox);
-	  }
-
-	  osDelay(500);
+	  Heartbeat_Task_Run();
   }
   /* USER CODE END StartTask06 */
 }

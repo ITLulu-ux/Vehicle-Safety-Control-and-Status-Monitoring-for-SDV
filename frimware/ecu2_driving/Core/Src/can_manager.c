@@ -60,12 +60,17 @@ void CAN_TX_Task_Run(void) {
     TxData[1] = (uint8_t) (current_distance & 0xFF);        // Byte 1: 거리 하위 8비트
     TxData[2] = (uint8_t) ((current_distance >> 8) & 0xFF); // Byte 2: 거리 상위 8비트
 
-    // 3. CAN 송신 (메일박스 확인)
-    if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) > 0) {
-        if (HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox) != HAL_OK) {
-            // 송신 실패 처리 (생략)
+    // 3. CAN 송신 (메일박스 상태 및 에러 확실하게 확인)
+        if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) > 0) {
+            if (HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox) != HAL_OK) {
+                // [디버그] 송신 자체를 실패했을 경우
+                printf("[CAN TX ERROR] 송신 실패 (버스 에러 또는 하드웨어 불량)\r\n");
+            }
+            // 성공했을 때는 로그가 너무 많이 도배될 수 있으므로 성공 로그는 생략합니다.
+        } else {
+            // ⭐️ [디버그] 제일 의심되는 부분! 수신부(ECU4)가 ACK를 안 줘서 우체통(메일박스)이 꽉 찬 경우
+            printf("[CAN TX ERROR] 메일박스 꽉 참 (수신부 응답 없음/단선/통신속도 불일치)\r\n");
         }
-    }
 
     // 4. 안전하게 복사된 지역 변수로 디버그 출력
     printf("[CAN TX] 송신 데이터 -> Speed: %d, Distance: %d\r\n", current_speed, current_distance);

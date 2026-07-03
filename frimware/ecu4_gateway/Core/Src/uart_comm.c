@@ -32,7 +32,7 @@ void UART_SendGatewayData(void) {
     }
 
     // DMA 전송 시작
-    HAL_UART_Transmit_DMA(&huart2, txBuffer, sizeof(txBuffer));
+    //HAL_UART_Transmit_DMA(&huart2, txBuffer, sizeof(txBuffer));
 }
 
 // [RX] 라즈베리파이에서 들어온 제어 명령 파싱 (문자열)

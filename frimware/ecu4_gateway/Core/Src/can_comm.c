@@ -29,6 +29,8 @@ void CAN_ProcessRxMessage(void) {
     while (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0) {
         if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxHeader, rxData) == HAL_OK) {
 
+        	printf("[CAN RX DEBUG] 수신된 메시지 ID: 0x%03X\r\n", (unsigned int)rxHeader.StdId);
+
             if (xSemaphoreTake(gatewayDataMutex, portMAX_DELAY) == pdTRUE) {
                 switch (rxHeader.StdId) {
                     case 0x100: // ControlData (ECU3)

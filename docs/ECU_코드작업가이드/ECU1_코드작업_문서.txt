@@ -1,0 +1,157 @@
+ECU1(Environment ECU) 코드 작업 문서
+
+1. 프로젝트 개요
+
+-   역할 : 환경 데이터 수집 ECU
+-   센서 : DHT11(온도/습도), BH1750(조도)
+-   기능
+    -   환경 센서 데이터 수집
+    -   CAN을 통한 환경 데이터 송신
+    -   Heartbeat 송신
+    -   ECU4 제어 명령 수신
+-   CAN ID
+    -   환경 데이터 : 0x300
+    -   Heartbeat : 0x701
+-   FreeRTOS Task
+    -   SensorTask
+    -   CanTxTask
+    -   CanRxTask
+    -   HeartbeatTask
+
+2. 개발 환경
+
+-   MCU : STM32F446RE
+-   IDE : STM32CubeIDE
+-   RTOS : FreeRTOS (CMSIS V1)
+-   통신 : CAN, I2C
+-   Timer : TIM2
+-   Git Branch : feature/ecu1
+
+3. 필요한 헤더 및 소스 파일
+
+Header
+
+-   sensor_data.h
+-   sensor_task.h
+-   can_comm.h
+-   can_task.h
+-   heartbeat_task.h
+-   dht11.h
+-   bh1750.h
+
+Source
+
+-   sensor_data.c
+-   sensor_task.c
+-   can_comm.c
+-   can_task.c
+-   heartbeat_task.c
+-   dht11.c
+-   bh1750.c
+
+4. 작성 순서
+
+1.  DHT11 Driver 수정
+2.  BH1750 Driver 수정
+3.  SensorData 구조체 작성
+4.  SensorTask 작성
+5.  CAN Driver 작성
+6.  CAN Task 작성
+7.  Heartbeat Task 작성
+8.  FreeRTOS 연결
+9.  main.c 초기화
+10. Build 및 컴파일 오류 수정
+
+5. 파일별 생성 함수, 정의 및 구현 내용
+
+sensor_data.h / sensor_data.c
+
+-   SensorData_t 구조체 정의
+-   sensorQueue 선언 및 정의
+-   canRxSemaphore 선언 및 정의
+
+sensor_task.c
+
+구현 함수 - SensorTask()
+
+기능 - DHT11 초기화 - BH1750 초기화 - 온도/습도/조도 측정 - Queue에
+SensorData 저장
+
+can_task.c
+
+구현 함수 - CanTxTask() - CanRxTask()
+
+기능 - Queue에서 환경 데이터 수신 - CAN 송신 - Binary Semaphore 대기 -
+ECU4 명령 처리
+
+can_comm.c
+
+구현 함수 - CAN_Init() - CAN_SendSensorData() - CAN_ProcessRxMessage() -
+CAN_SendHeartbeat() - HAL_CAN_RxFifo0MsgPendingCallback()
+
+heartbeat_task.c
+
+구현 함수 - HeartbeatTask() - 1초마다 Heartbeat 송신
+
+6. 중요 코드 설명
+
+Queue
+
+SensorTask → xQueueOverwrite() → Queue → CanTxTask → xQueueReceive() →
+CAN 송신
+
+Binary Semaphore
+
+CAN RX Interrupt → xSemaphoreGiveFromISR() → CanRxTask →
+xSemaphoreTake() → CAN_ProcessRxMessage()
+
+Heartbeat
+
+-   1초 주기 송신
+-   CAN ID : 0x701
+
+7. MX 기반 설정
+
+GPIO - DHT11 
+I2C  - BH1750
+
+CAN - CAN1 - FIFO0 - 500 kbps
+
+TIM - TIM2
+
+FreeRTOS - Sensor Task - CAN TX Task - CAN RX Task - Heartbeat Task
+
+Queue - SensorQueue - Length : 1 - Item : SensorData_t
+
+Semaphore - CAN_RX_BinarySemaphore
+
+8. 변수 및 함수명 규칙
+
+구조체 - SensorData_t
+
+Handle - hdht11 - hcan1 - hi2c1
+
+Task - SensorTask() - CanTxTask() - CanRxTask() - HeartbeatTask()
+
+Queue - sensorQueue
+
+Semaphore - canRxSemaphore
+
+CAN 함수 - CAN_Init() - CAN_SendSensorData() - CAN_ProcessRxMessage() -
+CAN_SendHeartbeat()
+
+DHT11 함수 - DHT11_Init() - DHT11_Read()
+
+BH1750 함수 - BH1750_Init() - BH1750_ReadLight()
+
+9. 데이터 흐름
+
+DHT11 / BH1750 → SensorTask → SensorData → Queue → CanTxTask → CAN →
+ECU3, ECU4
+
+10. CAN Frame 정의
+
+환경 데이터 (CAN ID : 0x300) - Byte0~1 : Temperature - Byte2~3 :
+Humidity - Byte4~5 : Lux - Byte6 : Reserved - Byte7 : Reserved
+
+Heartbeat (CAN ID : 0x701) - Byte0 : ECU Status - Byte1~7 : Reserved

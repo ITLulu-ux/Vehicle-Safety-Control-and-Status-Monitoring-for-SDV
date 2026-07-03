@@ -1,0 +1,325 @@
+ECU 4 : gateway ECU
+
+역할 :
+
+STM32(ECU 4)
+-	ECU1 환경데이터 수신
+-	ECU2 주행데이터 수신
+-	ECU3 제어데이터 수신
+-	CAN 데이터를 내부 구조체에 저장
+-	CAN 데이터를 UART로 ESP32에 전송
+
+ESP32
+- 	UART를 통해 ECU4의 GateWayData를 수신
+-	GateWayData를 JSON 형식으로 변환 (ESP가 문자열 처리에 적합함)
+-	Wi-Fi(HTTP REST API)를 통해 Rasberry Pi 중앙서버로 전송
+-	Rasberry Pi의 OTA 및 제어 명령을 HTTP로 수신
+-	수신한 제어 명령을 UART를 통해 ECU4로 전달
+-	HTTP를 통해 FirmWare(.bin) 파일을 다운로드 하여 OTA를 수행한다.
+
+Rasberry Pi
+-	JSON 수신
+-	DB 저장
+-	웹소켓 전송
+-	모니터링
+-	OTA FirmWare(.bin) 관리
+-	OTA 요청 처리
+======================================================================================================================
+
+통신 프로토콜
+
+ECU1~ECU4 : CAN
+
+ECU4 ↔ ESP32 : UART
+
+ESP32 ↔ Raspberry Pi : Wi-Fi(HTTP REST API)
+======================================================================================================================
+
+ECU4 Peripheral 
+
+| Peripheral   | 사용 대상    | 프로젝트에서의 역할                                               		 |
+| ------------ | -------- | --------------------------------------------------------- 				 |
+| **CAN1**     | CAN Bus  | ECU1~ECU3의 CAN 데이터를 수신하고 Raspberry Pi의 제어 명령을 CAN으로 송신한다.	 |
+| **UART**     | ESP32    | GateWay 데이터를 UART로 ESP32에 전송하고 ESP32를 통해 전달된 제어 명령을 수신한다.   |
+| **FreeRTOS** | STM32 내부 | CAN RX, UART RX, UART TX, CAN TX, Heartbeat Task를 스케줄링한다.			 |
+
+
+ESP32 Peripheral
+
+| Peripheral | 사용 대상    | 프로젝트에서의 역할                                   		   |
+| ---------- | ------------ | ---------------------------------------------- 			   |
+| **UART0**  | ECU4         | ECU4와 UART 통신을 수행한다.                          		   |
+| **Wi-Fi**  | Raspberry Pi | HTTP REST API를 이용하여 JSON 데이터를 송신하고 OTA 및 제어 명령 수신|
+| **HTTP**     | ESP32    | HTTP REST API를 이용하여 JSON 데이터를 송신하고, OTA Firmware 및 제어 명령 수신      |
+
+======================================================================================================================
+
+구조체
+
+typedef struct
+{
+    SensorData_t sensorData;
+    DrivingData_t drivingData;
+    ControlData_t controlData;
+
+    uint8_t heartbeat1;
+    uint8_t heartbeat2;
+    uint8_t heartbeat3;
+
+} GatewayData_t;
+
+ecu 1,2,3에서 받은 데이터 하나로 합쳐서 ESP32에 송신
+======================================================================================================================
+
+## ECU4 Task 우선순위
+
+| Task               | Priority | 역할                                                                       				      |
+| ------------------ | -------- | ------------------------------------------------------------------------ 	                       	      |			
+| **CAN RX Task**    | High     | ECU1(환경 데이터), ECU2(주행 데이터), ECU3(제어 데이터)의 CAN 메시지를 수신하여 각 공유 구조체에 저장한다.  |
+| **UART RX Task**   | High     | ESP32로부터 전달된 Raspberry Pi의 제어 명령(OTA, Reset, 설정 변경 등)을 UART로 수신한다.     		      |
+| **UART TX Task**   | Normal   | ECU1~ECU3의 최신 데이터를 통합하여 ESP32로 UART 전송한다.                                		      |
+| **CAN TX Task**    | Normal   | Raspberry Pi에서 전달된 OTA, Reset, 설정 변경 등의 제어 명령을 CAN 메시지로 ECU1~ECU3에 송신한다. 	      |
+| **Heartbeat Task** | Low      | ECU1~ECU3의 Heartbeat를 관리하고, Gateway ECU의 Heartbeat를 주기적으로 송신한다.         		      |
+
+## ESP32 Task 우선순위
+
+| Task             | Priority | 역할                                                    	 	 |
+| ---------------- | -------- | ------------------------------------------------------ 			 |
+| **UART RX Task** | High     | ECU4에서 전송한 GatewayData를 UART로 수신한다.                    	 |
+| **HTTP RX Task** | High     | Raspberry Pi의 OTA, Reset, 설정 변경 등의 HTTP 요청을 수신한다.     	 |
+| **JSON Task**    | Normal   | 수신한 GatewayData를 JSON 형식으로 변환한다.                       	 |
+| **HTTP TX Task** | Normal   | JSON 데이터를 HTTP REST API를 이용하여 Raspberry Pi 중앙서버로 전송한다. |
+| **UART TX Task** | Normal   | Raspberry Pi로부터 수신한 제어 명령을 UART를 통해 ECU4로 전달한다.       |
+
+======================================================================================================================
+
+## 인터럽트
+
+| Interrupt             | 발생 조건           | 역할                                                                                   			      |
+| --------------------- | -------------       | ------------------------------------------------------------------------------------ 			      |
+| **CAN RX Interrupt**  | CAN 메시지 수신 시  | ECU1, ECU2, ECU3에서 송신한 CAN 메시지를 수신하고 Binary Semaphore를 Give하여 CAN RX Task를 실행한다.         |
+| **UART RX Interrupt** | UART 데이터 수신 시 | ESP32로부터 전달되는 Raspberry Pi의 제어 명령을 수신하고 Binary Semaphore를 Give하여 UART RX Task를 실행한다. |
+| **SysTick Interrupt** | 1ms 주기            | FreeRTOS Tick을 생성하여 Task 스케줄링, `osDelay()`, 소프트웨어 타이머 등을 관리한다.                         |
+
+### 1. CAN RX Interrupt
+
+ECU1, ECU2, ECU3에서 CAN 메시지가 수신되면 STM32 CAN Peripheral이 인터럽트를 발생시킨다.
+
+인터럽트에서는 Binary Semaphore를 Give하여 CAN RX Task를 즉시 실행하며, CAN RX Task는 수신한 데이터를
+각 공유 구조체(SensorData, DrivingData, ControlData)에 저장한다.
+
+---
+
+### 2. UART RX Interrupt
+
+ESP32를 통해 Raspberry Pi의 제어 명령(OTA, Reset, 설정 변경 등)이 UART로 수신되면 UART Peripheral이 인터럽트를 발생시킨다.
+인터럽트에서는 Binary Semaphore를 Give하여 UART RX Task를 즉시 실행하며, 
+UART RX Task는 수신한 명령을 CAN TX Task가 사용할 수 있도록 저장한다.
+
+---
+
+### 3. SysTick Interrupt
+
+FreeRTOS에서 반드시 사용하는 인터럽트이다.
+
+STM32의 SysTick Timer가 1ms마다 Tick을 발생시키며, FreeRTOS는 이를 이용하여 CAN RX Task, 
+UART RX Task, UART TX Task, CAN TX Task, Heartbeat Task를 스케줄링한다.
+
+
+======================================================================================================================
+
+## Semaphore & Mutex
+
+### 1. Binary Semaphore (CAN RX)
+
+**CAN 메시지 수신 이벤트를 CAN RX Task에 전달하기 위한 동기화 객체이다.**
+
+| Semaphore                   | Give                 | Take            | 역할                                                                                      |
+| --------------------------- | -------------------- | --------------- | -------------------------------------------------------------------------------------     |
+| **CAN RX Binary Semaphore** | **CAN RX Interrupt** | **CAN RX Task** | ECU1, ECU2, ECU3에서 CAN 메시지가 수신되면 인터럽트에서 Semaphore를 Give하여 
+									 CAN RX Task를 즉시 실행한다. CAN RX Task는 수신한 데이터를 GatewayData 구조체에 저장한다. |
+
+---
+
+### 2. Binary Semaphore (UART RX)
+
+**UART 데이터 수신 이벤트를 UART RX Task에 전달하기 위한 동기화 객체이다.**
+
+| Semaphore                    | Give                  | Take             | 역할                                                                                                |
+| ---------------------------- | --------------------- | ---------------- | ----------------------------------------------------------------------------------------------------|
+| **UART RX Binary Semaphore** | **UART RX Interrupt** | **UART RX Task** | ESP32를 통해 Raspberry Pi의 제어 명령이 UART로 수신되면 인터럽트에서 Semaphore를 Give하여 
+									    UART RX Task를 즉시 실행한다. UART RX Task는 수신한 명령을 CAN TX Task가 사용할 수 있도록 저장한다. |
+
+---
+
+### 3. GatewayData Mutex
+
+**GatewayData 공유 구조체를 보호하기 위한 동기화 객체이다.**
+
+| Mutex                 | 사용 Task                       | 역할                                                                                 |
+| --------------------- | ----------------------------- | -------------------------------------------------------------------------------------- |
+| **GatewayData Mutex** | **CAN RX Task, UART TX Task** | ECU1, ECU2, ECU3에서 수신한 데이터를 하나의 GatewayData 구조체에 저장하고,
+ 							  UART TX Task가 최신 데이터를 ESP32로 안전하게 전송할 수 있도록 공유 구조체를 보호한다. |
+
+---
+
+### 설계 의도
+
+* **Binary Semaphore**는 인터럽트와 Task를 연결하여 이벤트가 발생했을 때만 Task를 실행하도록 한다.
+* **GatewayData Mutex**는 CAN RX Task와 UART TX Task가 동일한 GatewayData 구조체에 동시에 접근하는 것을 방지하여 데이터의 일관성을 유지한다.
+
+
+======================================================================================================================
+
+ECU4의 CAN
+
+TX : OTA Update Command, Reset, 설정 변경,Heartbeat
+RX : 환경 데이터(ECU1), 주행 데이터(ECU2), 제어 데이터(ECU3), Heartbeat(ECU1~ECU3)
+======================================================================================================================
+
+## Header File
+
+| 헤더 파일            | 역할                         |
+| ---------------- | -------------------------- |
+| `main.h`         | GPIO, 핀 정의 및 프로젝트 공통 헤더    |
+| `gateway_data.h` | GatewayData 구조체 및 Mutex 선언 |
+| `can_comm.h`     | CAN 송수신 함수 및 CAN ID 정의     |
+| `uart_comm.h`    | UART 송수신 함수 선언             |
+| `heartbeat.h`    | Heartbeat 관리 함수            |
+| `tasks.h`        | FreeRTOS Task 생성 및 함수 선언   |
+
+---
+======================================================================================================================
+
+작성 예시
+(작업전 코드 검증 필요)
+
+### gateway_data.h
+
+```c
+#ifndef GATEWAY_DATA_H
+#define GATEWAY_DATA_H
+
+#include <stdint.h>
+#include "cmsis_os.h"
+#include "sensor_data.h"
+#include "driving_data.h"
+#include "control_data.h"
+
+typedef struct
+{
+    SensorData_t sensorData;
+    DrivingData_t drivingData;
+    ControlData_t controlData;
+
+} GatewayData_t;
+
+extern GatewayData_t gatewayData;
+
+extern SemaphoreHandle_t gatewayDataMutex;
+
+#endif
+```
+
+---
+
+### tasks.h
+
+```c
+#ifndef TASKS_H
+#define TASKS_H
+
+void StartCanRxTask(void *argument);
+void StartUartRxTask(void *argument);
+void StartUartTxTask(void *argument);
+void StartCanTxTask(void *argument);
+void StartHeartbeatTask(void *argument);
+
+#endif
+```
+
+---
+
+### can_comm.h
+
+```c
+#ifndef CAN_COMM_H
+#define CAN_COMM_H
+
+void CAN_ProcessRxMessage(void);
+void CAN_SendCommand(void);
+void CAN_SendHeartbeat(void);
+
+#endif
+```
+
+---
+
+### uart_comm.h
+
+```c
+#ifndef UART_COMM_H
+#define UART_COMM_H
+
+void UART_SendGatewayData(void);
+void UART_ProcessRxMessage(void);
+
+#endif
+```
+
+---
+
+### heartbeat.h
+
+```c
+#ifndef HEARTBEAT_H
+#define HEARTBEAT_H
+
+void Heartbeat_Check(void);
+void Heartbeat_Send(void);
+
+#endif
+```
+
+---
+
+## 최종 파일 구조
+
+```text
+ECU4
+│
+├── main.h
+├── gateway_data.h
+├── can_comm.h
+├── uart_comm.h
+├── heartbeat.h
+└── tasks.h
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

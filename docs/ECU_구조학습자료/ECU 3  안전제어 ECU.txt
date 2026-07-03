@@ -1,0 +1,276 @@
+ECU 3 : 안전제어 ECU
+
+
+
+역할 : 
+
+
+- ECU1 환경 데이터 수신
+- ECU2 주행 데이터 수신
+- 위험도 판단
+- 브레이크 Servo 제어
+- 와이퍼 Servo 제어
+- LED 경고 제어
+- 제어 결과 CAN 송신
+- Gateway 명령 수신
+- Heartbeat 송신
+
+======================================================================================================================
+
+
+사용 Peripheral
+
+
+| Peripheral    | 사용 대상         | 프로젝트에서의 역할                                                                     |
+| ------------- | ------------- | ------------------------------------------------------------------------------ |
+| **GPIO**      | LED           | 위험도에 따라 LED를 점등 또는 점멸하여 운전자에게 경고한다.                                            |
+| **TIM (PWM)** | Servo Motor 1 | 브레이크 Servo를 PWM으로 제어하여 위험도에 따른 제동 강도를 표현한다.                                    |
+| **TIM (PWM)** | Servo Motor 2 | 와이퍼 Servo를 PWM으로 제어하여 위험도에 따라 동작 속도를 변경한다.                                     |
+| **CAN1**      | CAN Bus       | ECU1과 ECU2의 CAN 데이터를 수신하고 제어 결과를 ECU4로 송신한다.                                   |
+| **FreeRTOS**  | STM32 내부      | CAN RX Task, Risk Task, Brake Task, Wiper Task, LED Task, CAN TX Task를 스케줄링한다. |
+
+======================================================================================================================
+
+## Task 우선순위
+
+| Task               | Priority | 역할                                                                                      						    |
+| ------------------ | -------- | ---------------------------------------------------------------------------------------- 						    |
+| **CAN RX Task**    | High     | ECU1, ECU2 및 Gateway로부터 수신한 CAN 메시지를 즉시 처리하고, 환경 데이터와 주행 데이터를 공유 구조체에 저장하거나 제어 명령을 해석한다. |
+| **Risk Task**      | High     | ECU1의 환경 데이터와 ECU2의 주행 데이터를 기반으로 위험도를 계산하고 브레이크, 와이퍼, LED 제어 값을 결정한다.                            |
+| **Brake Task**     | Normal   | Risk Task에서 계산된 위험도에 따라 브레이크 Servo의 제동 강도를 PWM으로 제어한다.                                   			    |
+| **Wiper Task**     | Normal   | 위험도 및 환경 정보를 기반으로 와이퍼 Servo의 동작 상태를 제어한다.                                               			    |
+| **LED Task**       | Normal   | 위험도에 따라 LED를 점등 또는 점멸하여 운전자에게 위험 상황을 알린다.                                                		 	    |
+| **CAN TX Task**    | Normal   | 현재 위험도와 브레이크, 와이퍼, LED의 제어 상태를 CAN 메시지로 ECU4(Gateway)에 송신한다.                             			    |
+| **Heartbeat Task** | Low      | ECU3의 정상 동작 여부를 일정 주기로 Heartbeat CAN 메시지로 송신한다.                                         				    |
+
+
+왜 이렇게 우선순위를 주었는가?
+
+CAN RX Task는 다른 ECU의 데이터를 받아야 ECU3가 동작하므로 최우선입니다.
+Risk Task는 받은 데이터를 즉시 분석하여 차량 제어 여부를 결정하는 핵심 Task이므로 CAN RX 다음으로 높은 우선순위를 부여했습니다.
+Brake, Wiper, LED Task는 모두 Risk Task의 계산 결과를 바탕으로 동작하므로 동일한 우선순위를 부여했습니다.
+CAN TX Task는 제어 결과를 ECU4로 전송하는 역할이며, 약간의 지연은 허용되므로 Normal 우선순위로 설정했습니다.
+Heartbeat Task는 시스템 상태를 주기적으로 알리는 기능으로 실시간성이 가장 낮아 Low 우선순위를 부여했습니다.
+
+======================================================================================================================
+
+인터럽트
+
+## 인터럽트
+
+| Interrupt                  | 발생 조건               | 역할                                                                               				           |
+| -------------------------- | ---------------         | ----------------------------------------------------------------------------------                                        |
+| **CAN RX Interrupt**       | CAN 메시지 수신 시      | ECU1과 ECU2에서 송신한 CAN 메시지를 수신하고 Binary Semaphore를 Give하여 CAN RX Task를 실행한다.        	   	   |
+| **TIM PWM Interrupt (선택)*| PWM 주기 이벤트 발생 시 | Servo PWM 제어가 필요한 경우 PWM 출력 타이밍을 관리한다. (기본 Servo 제어는 HAL PWM 출력만으로도 가능하므로 필수는 아님.) |
+| **SysTick Interrupt**      | 1ms 주기                | FreeRTOS Tick을 생성하여 Task 스케줄링, `osDelay()`, 소프트웨어 타이머 등을 관리한다.                    		   |
+
+### 1. CAN RX Interrupt
+
+ECU3는 ECU1(환경 ECU)과 ECU2(주행 ECU)에서 송신한 CAN 데이터를 수신하여 위험도를 판단한다.
+
+CAN 메시지가 수신되면 STM32의 CAN Peripheral이 인터럽트를 발생시키며, 인터럽트에서는 Binary Semaphore를 Give하여 CAN RX Task를 즉시 실행한다. 
+CAN RX Task는 수신한 데이터를 공유 구조체에 저장하고, Risk Task가 최신 데이터를 이용하여 위험도를 계산할 수 있도록 한다.
+
+---
+
+### 2. TIM PWM
+
+Servo Motor는 PWM 신호로 제어된다.
+
+STM32의 Timer(TIM)는 일정한 PWM 신호를 생성하여 브레이크 Servo와 와이퍼 Servo를 제어한다. 
+일반적인 Servo 제어에서는 PWM 출력만 사용하므로 별도의 인터럽트는 필요하지 않으며, 특수한 제어가 필요한 경우에만 TIM 인터럽트를 사용할 수 있다.
+
+---
+
+### 3. SysTick Interrupt
+
+FreeRTOS에서 반드시 사용하는 인터럽트이다.
+
+STM32의 SysTick Timer가 1ms마다 Tick을 발생시키며, FreeRTOS는 이를 이용하여 
+CAN RX Task, Risk Task, Brake Task, Wiper Task, LED Task, CAN TX Task, Heartbeat Task의 실행 시점을 스케줄링한다.
+
+
+======================================================================================================================
+
+Mutex
+
+ECU 3은 여러 Task가 같은 제어 데이터를 계속사용
+ 
+에를 들어
+
+CAN RX Task
+        │
+        ▼
+EnvironmentData
+DrivingData
+        │
+      (Mutex)
+        │
+        ▼
+    Risk Task
+        │
+        ▼
+ControlData
+(Brake, Wiper, LED)
+        │
+      (Mutex)
+   ┌────┼────┐
+   ▼    ▼    ▼
+Brake Wiper LED
+ Task  Task  Task
+        │
+        ▼
+   CAN TX Task
+
+
+----
+ECU3에서 추천하는 공유 구조체
+
+typedef struct
+{
+    uint8_t risk;
+    uint8_t brakeLevel;
+    uint8_t wiperMode;
+    uint8_t ledState;
+
+} ControlData_t;
+
+======================================================================================================================
+
+## Semaphore
+
+### 1. Binary Semaphore (CAN RX)
+
+**CAN 메시지 수신 이벤트를 CAN RX Task에 전달하기 위한 동기화 객체이다.**
+
+인터럽트에서는 Semaphore를 Give하고, CAN RX Task는 Semaphore를 Take하여 ECU1과 ECU2에서 수신한 데이터를 읽고 위험도 판단을 위한 공유 구조체에 저장한다.
+
+| Semaphore                   | Give                 | Take            | 역할                                                                                                                                                            |
+| --------------------------- | -------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CAN RX Binary Semaphore** | **CAN RX Interrupt** | **CAN RX Task** | CAN 메시지가 수신되면 인터럽트에서 Binary Semaphore를 Give하여 CAN RX Task를 즉시 실행한다.
+									 CAN RX Task는 수신한 환경 및 주행 데이터를 공유 구조체에 저장하고,
+ 									 이후 Risk Task가 최신 데이터를 이용하여 위험도를 계산할 수 있도록 한다. 		|
+
+### 설계 의도
+
+* 인터럽트에서는 최소한의 작업(Semaphore Give)만 수행하여 인터럽트 처리 시간을 최소화한다.
+* CAN RX Task가 실제 CAN 데이터 처리와 구조체 갱신을 담당하여 시스템의 안정성과 응답성을 향상시킨다.
+* 이벤트 기반(Event-driven) 방식으로 동작하여 CPU의 불필요한 폴링을 방지하고 실시간성을 확보한다.
+
+======================================================================================================================
+
+ECU3에서 사용된는 구조체
+-----------------------------
+
+ECU1에서 받은 데이터 :
+
+SensorData_t sensorData;
+
+역할
+
+CAN RX Task가 갱신
+Risk Task가 읽음
+-----------------------------
+ECU2에서 받은 데이터 :
+
+DrivingData_t drivingData;
+
+역할
+
+CAN RX Task가 갱신
+Risk Task가 읽음
+-----------------------------
+
+ECU3 계산 결과
+
+typedef struct
+{
+    uint8_t riskLevel;
+    uint8_t brakeLevel;
+    uint8_t wiperState;
+    uint8_t ledState;
+
+} ControlData_t;
+
+ControlData_t controlData;
+
+역할
+
+Risk Task가 갱신
+Brake Task가 읽음
+Wiper Task가 읽음
+LED Task가 읽음
+CAN TX Task가 읽음
+-----------------------------
+
+Mutex
+
+1. Vehicle Mutex
+
+SemaphoreHandle_t vehicleMutex;
+
+보호 대상 : sensorData,drivingData
+-----------------------------
+
+2. Control Mutex
+
+SemaphoreHandle_t controlMutex;
+
+보호 대상 : controlData
+
+사용 Task :
+
+Risk Task (Write)
+Brake Task (Read)
+Wiper Task (Read)
+LED Task (Read)
+CAN TX Task (Read)
+------------------------------
+
+코드 흐름
+
+CAN RX Task
+      │
+      ├── sensorData 갱신
+      └── drivingData 갱신
+             │
+      (vehicleMutex)
+             │
+             ▼
+        Risk Task
+             │
+      위험도 계산
+             │
+      controlData 갱신
+             │
+      (controlMutex)
+             │
+      ┌──────┼──────┬──────┐
+      ▼      ▼      ▼      ▼
+ Brake   Wiper    LED   CAN TX
+
+======================================================================================================================
+
+ECU 3의 CAN
+
+TX : controlData(위험도,브레이크상태,와이퍼상태,LED상태),Hearbeat
+RX : 환경데이터(ECU1),주행데이터(ECU2),OTA,Reset,설정변경
+
+======================================================================================================================
+
+헤더파일 : 
+
+| 헤더 파일        | 역할                         	|
+| ---------------- | -------------------------- 	|
+| `main.h`         | GPIO, 핀 정의 및 프로젝트 공통 헤더|
+| `risk.h`         | 위험도 계산 함수                   |
+| `brake.h`        | 브레이크 Servo 제어 함수           |
+| `wiper.h`        | 와이퍼 Servo 제어 함수             |
+| `led.h`          | LED 제어 함수                      |
+| `can_comm.h`     | CAN 송수신 함수 및 CAN ID 정의     |
+| `control_data.h` | ControlData 구조체 및 Mutex 선언   |
+| `heartbeat.h`    | Heartbeat CAN 메시지 송신          |
+| `tasks.h`        | FreeRTOS Task 생성 및 함수 선언    |
+
+
+

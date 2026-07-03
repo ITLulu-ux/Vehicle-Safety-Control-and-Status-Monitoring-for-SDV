@@ -19,9 +19,16 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
-#include "task.h"
+#include "tasks.h"
 #include "main.h"
 #include "cmsis_os.h"
+#include "control_data.h"
+#include "risk.h"
+#include "brake.h"
+#include "wiper.h"
+#include "led.h"
+#include "heartbeat.h"
+#include "can_comm.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -33,19 +40,19 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 // main.c에 정의된 RiskLevel 열거형 공유용
-typedef enum {
+/*typedef enum {
     RISK_SAFE = 0,
     RISK_CAUTION,
     RISK_WARNING,
     RISK_DANGER
-} RiskLevel_t;
+} RiskLevel_t;*/
 
 // 큐 데이터 포맷 정의 (CAN RX 메시지 백업용 구조체)
-typedef struct {
+/*typedef struct {
     uint32_t StdId;
     uint8_t  DLC;
     uint8_t  Data[8];
-} CAN_Rx_Format_t;
+} CAN_Rx_Format_t;*/
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -299,9 +306,40 @@ void StartCANRXTask(void *argument)
 {
   /* USER CODE BEGIN StartCANRXTask */
   /* Infinite loop */
+  CAN_Rx_Format_t rxMsg;
+
   for(;;)
   {
-    osDelay(1);
+	  if (osMessageQueueGet(Queue_CAN_RXHandle, &rxMsg, NULL, osWaitForever) == osOK)
+	   {
+		  switch (rxMsg.StdId)
+		              {
+		                  case CAN_ID_ECU1_ENV:
+		                      if (osMutexAcquire(Mutex_RiskDataHandle, osWaitForever) == osOK) {
+		                    	  sensorData.temperature=rxMsg.Data[0];
+		                          sensorData.humidity = rxMsg.Data[1];
+		                          sensorData.lux = (rxMsg.Data[2] << 8) | rxMsg.Data[3];
+		                          osMutexRelease(Mutex_RiskDataHandle);
+		                      }
+		                      break;
+
+		                  case CAN_ID_ECU2_DRIVE:
+		                      if (osMutexAcquire(Mutex_RiskDataHandle, osWaitForever) == osOK) {
+		                          drivingData.speed = rxMsg.Data[0];
+		                          drivingData.distance = (rxMsg.Data[1] << 8) | rxMsg.Data[2];
+		                          osMutexRelease(Mutex_RiskDataHandle);
+		                      }
+		                      // 수신 즉시 위험도 계산 노드 구동
+		                      Process_Risk_Analysis();
+		                      break;
+
+		                  case CAN_ID_GATEWAY_CMD:
+		                      if (rxMsg.Data[0] == 0x01) HAL_NVIC_SystemReset(); // UDS 강제 리셋 명령
+		                      else if (rxMsg.Data[0] == 0x02 && rxMsg.Data[1] == 0x03) ota_mode_active = 1;
+		                      else if (rxMsg.Data[0] == 0x04) ota_mode_active = 0;
+		                      break;
+		              }
+	    }
   }
   /* USER CODE END StartCANRXTask */
 }
@@ -319,6 +357,7 @@ void StartLEDTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
+	Control_LED_Alert();
     osDelay(1);
   }
   /* USER CODE END StartLEDTask */
@@ -337,6 +376,7 @@ void StartCANTXTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
+	CAN_Send_Status();
     osDelay(1);
   }
   /* USER CODE END StartCANTXTask */
@@ -355,7 +395,8 @@ void StartHeartbeatTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	Send_Heartbeat_Signal();
+    osDelay(1000);
   }
   /* USER CODE END StartHeartbeatTask */
 }
@@ -373,7 +414,8 @@ void StartRiskTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	Process_Risk_Analysis();
+    osDelay(20);
   }
   /* USER CODE END StartRiskTask */
 }
@@ -391,7 +433,8 @@ void StartBrakeTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	Control_Brake();
+    osDelay(20);
   }
   /* USER CODE END StartBrakeTask */
 }
@@ -409,6 +452,7 @@ void StartWiperTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
+	Control_Wiper();
     osDelay(1);
   }
   /* USER CODE END StartWiperTask */

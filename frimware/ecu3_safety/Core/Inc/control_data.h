@@ -30,6 +30,7 @@ typedef struct
 
 // ECU1 환경 데이터 구조체
 typedef struct {
+	uint8_t temperature;
     uint8_t humidity;
     uint16_t lux;
 } SensorData_t;

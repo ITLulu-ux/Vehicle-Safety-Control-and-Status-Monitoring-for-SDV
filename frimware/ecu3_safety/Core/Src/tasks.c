@@ -24,12 +24,12 @@ extern volatile uint8_t ota_mode_active;
   */
 void StartTask_CAN_RX(void *argument)
 {
-    CAN_Rx_Format_t rxMsg;
+    //CAN_Rx_Format_t rxMsg;
     for(;;)
     {
-        if (osMessageQueueGet(Queue_CAN_RXHandle, &rxMsg, NULL, osWaitForever) == osOK)
+        //if (osMessageQueueGet(Queue_CAN_RXHandle, &rxMsg, NULL, osWaitForever) == osOK)
         {
-            switch (rxMsg.StdId)
+            /*switch (rxMsg.StdId)
             {
                 case CAN_ID_ECU1_ENV:
                     if (osMutexAcquire(Mutex_RiskDataHandle, osWaitForever) == osOK) {
@@ -54,7 +54,8 @@ void StartTask_CAN_RX(void *argument)
                     else if (rxMsg.Data[0] == 0x02 && rxMsg.Data[1] == 0x03) ota_mode_active = 1;
                     else if (rxMsg.Data[0] == 0x04) ota_mode_active = 0;
                     break;
-            }
+            }*/
+        	osDelay(20);
         }
     }
 }

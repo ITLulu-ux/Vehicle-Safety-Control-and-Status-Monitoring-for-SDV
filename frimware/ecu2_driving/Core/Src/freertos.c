@@ -53,7 +53,6 @@ DrivingData_t drivingData = {0, 0};
 uint16_t ultrasonic_distance = 0;
 osMutexId drivingMutexHandle;
 /* USER CODE END Variables */
-
 osThreadId LCD_TaskHandle;
 osThreadId CAN_RX_TaskHandle;
 osThreadId Distance_TaskHandle;

@@ -9,6 +9,7 @@
 #include "can_manager.h"
 #include "driving_data.h"
 #include "main.h"
+#include <stdio.h>
 
 extern CAN_HandleTypeDef hcan1;
 
@@ -39,29 +40,37 @@ void CAN_TX_Task_Run(void) {
     uint8_t TxData[3]; // DLC=3 (속도 1바이트 + 거리 2바이트)
     uint32_t TxMailbox;
 
+    // printf 출력을 위한 안전한 지역 변수
+    uint8_t current_speed = 0;
+    uint16_t current_distance = 0;
+
     TxHeader.StdId = 0x200;
     TxHeader.IDE = CAN_ID_STD;
     TxHeader.RTR = CAN_RTR_DATA;
     TxHeader.DLC = 3;
 
-	// 1. Mutex를 통해 데이터 안전하게 복사
-	osMutexWait(drivingMutexHandle, osWaitForever);
+    // 1. Mutex를 통해 데이터 안전하게 복사
+    osMutexWait(drivingMutexHandle, osWaitForever);
+    current_speed = drivingData.speed;
+    current_distance = drivingData.distance;
+    osMutexRelease(drivingMutexHandle);
 
-	TxData[0] = (uint8_t) drivingData.speed;	// Byte 0: 속도
-	TxData[1] = (uint8_t) (drivingData.distance & 0xFF);    // Byte 1: 거리 하위 8비트
-	TxData[2] = (uint8_t) ((drivingData.distance >> 8) & 0xFF); // Byte 2: 거리 상위 8비트
+    // 2. CAN 송신용 바이트 배열 구성
+    TxData[0] = (uint8_t) current_speed;                    // Byte 0: 속도
+    TxData[1] = (uint8_t) (current_distance & 0xFF);        // Byte 1: 거리 하위 8비트
+    TxData[2] = (uint8_t) ((current_distance >> 8) & 0xFF); // Byte 2: 거리 상위 8비트
 
-	osMutexRelease(drivingMutexHandle);
+    // 3. CAN 송신 (메일박스 확인)
+    if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) > 0) {
+        if (HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox) != HAL_OK) {
+            // 송신 실패 처리 (생략)
+        }
+    }
 
-	// 2. CAN 송신 (인터럽트 확인)
-	if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) > 0) {
-		if (HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox)
-				!= HAL_OK) {
-			// 필요시 에러 처리 (예: Error_Handler())
-		}
-	}
+    // 4. 안전하게 복사된 지역 변수로 디버그 출력
+    printf("[CAN TX] 송신 데이터 -> Speed: %d, Distance: %d\r\n", current_speed, current_distance);
 
-	osDelay(100); // 100ms 주기 송신
+    osDelay(500); // 100ms 주기 송신
 }
 
 void Heartbeat_Task_Run(void) {

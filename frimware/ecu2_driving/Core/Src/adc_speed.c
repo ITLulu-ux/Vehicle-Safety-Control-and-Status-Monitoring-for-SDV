@@ -9,6 +9,7 @@
 #include "adc_speed.h"
 #include "driving_data.h"
 #include "main.h"
+#include <stdio.h>
 
 extern ADC_HandleTypeDef hadc1;
 

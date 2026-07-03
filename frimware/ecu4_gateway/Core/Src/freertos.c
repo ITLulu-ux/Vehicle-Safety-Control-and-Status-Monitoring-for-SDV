@@ -107,7 +107,7 @@ void MX_FREERTOS_Init(void) {
   /* Create the semaphores(s) */
   /* definition and creation of Sem_UART_Rx */
   osSemaphoreDef(Sem_UART_Rx);
-  Sem_UART_RxHandle = osSemaphoreCreate(osSemaphore(Sem_UART_Rx), 1);
+  Sem_UART_RxHandle = osSemaphoreCreate(osSemaphore(Sem_UART_Rx), 0);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -155,22 +155,16 @@ void MX_FREERTOS_Init(void) {
 void Start_Task_Can(void const * argument)
 {
   /* USER CODE BEGIN Start_Task_Can */
-    // ⭐️ [추가] OS 셋업이 끝나고 태스크가 깨어난 '지금' 통신을 시작합니다!
     if (HAL_CAN_Start(&hcan1) == HAL_OK) {
         printf("[CAN] Start OK\r\n");
     }
-    // ⭐️ [추가] CAN 수신 인터럽트(초인종) 켜기
-    HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
 
-    osEvent event;
-    for(;;)
+    for (;;)
     {
-        // CAN RX 인터럽트 발생 시까지 무한 대기
-        event = osMessageGet(Queue_CAN_RxHandle, osWaitForever);
-        if(event.status == osEventMessage) {
-            printf("[Task] 큐 수신 완료! 파싱 진입...\r\n"); // 생사 확인용 로그
+        if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0) {
             CAN_ProcessRxMessage();
         }
+        osDelay(10);
     }
   /* USER CODE END Start_Task_Can */
 }
@@ -213,6 +207,7 @@ void Start_Task_Heartbeat(void const * argument)
   /* Infinite loop */
 	for(;;)
 	  {
+	    Heartbeat_CheckTimeout();
 	    CAN_SendHeartbeat();
 	    osDelay(1000);
 	  }

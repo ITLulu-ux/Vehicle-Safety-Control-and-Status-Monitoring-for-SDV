@@ -1,6 +1,7 @@
 #include "uart_comm.h"
 #include "gateway_data.h"
-#include "usart.h" 
+#include "can_comm.h"
+#include "usart.h"
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include <stdio.h>
@@ -50,6 +51,7 @@ void UART_ProcessRxMessage(void) {
         parsedCommand.parameters[1] = (uint8_t)param2;
         
         printf(" -> 파싱 성공! CMD:0x%02X, TARGET:ECU%d\r\n", parsedCommand.commandId, parsedCommand.targetEcu);
+        CAN_RelayParsedCommand();
     } else {
         printf(" -> 파싱 실패! 형식 불일치\r\n");
     }

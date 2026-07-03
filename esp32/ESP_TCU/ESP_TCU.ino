@@ -207,7 +207,7 @@ void Task_HTTP_RX(void *pvParameters) {
             int param2 = doc["param2"];
             
             char txString[32];
-            sprintf(txString, "CMD,%d,%d,%d\n", cmdId, param1, param2);
+            sprintf(txString, "CMD,%d,%d,%d,%d\n", cmdId, targetEcu, param1, param2);
             
             xQueueSend(uartTxQueue, txString, portMAX_DELAY);
             

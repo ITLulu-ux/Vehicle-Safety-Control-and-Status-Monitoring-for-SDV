@@ -1,10 +1,12 @@
 #include "can_comm.h"
 #include "gateway_data.h"
 #include "uart_comm.h"
+#include "heartbeat.h"
 #include "can.h"
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include <stdio.h>
+#include <string.h>
 
 void CAN_Filter_Config(void) {
 
@@ -23,8 +25,35 @@ void CAN_Filter_Config(void) {
     canFilterConfig.SlaveStartFilterBank = 14;
 
     if (HAL_CAN_ConfigFilter(&hcan1, &canFilterConfig) != HAL_OK) {
-            Error_Handler();
-        }
+        Error_Handler();
+    }
+}
+
+void CAN_ApplyDownlinkFromPayload(const uint8_t *rxData)
+{
+    parsedCommand.commandId = rxData[0];
+    parsedCommand.targetEcu = rxData[1];
+    memcpy(parsedCommand.parameters, &rxData[2], 6);
+
+    printf("[CAN RX] 0x500 명령 수신 -> ECU%d 릴레이 (CMD:0x%02X)\r\n",
+           parsedCommand.targetEcu, parsedCommand.commandId);
+
+    CAN_RelayParsedCommand();
+}
+
+void CAN_RelayParsedCommand(void)
+{
+    if (parsedCommand.targetEcu == 4U) {
+        OTA_HandleLocalCommand(&parsedCommand);
+        return;
+    }
+
+    if (parsedCommand.targetEcu >= 1U && parsedCommand.targetEcu <= 3U) {
+        CAN_SendCommand();
+        return;
+    }
+
+    printf("[CAN TX ERROR] 잘못된 TARGET ECU: %d\r\n", parsedCommand.targetEcu);
 }
 
 void CAN_ProcessRxMessage(void) {
@@ -35,6 +64,11 @@ void CAN_ProcessRxMessage(void) {
         if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxHeader, rxData) == HAL_OK) {
 
             printf("[CAN RX DEBUG] 수신된 메시지 ID: 0x%03X\r\n", (unsigned int)rxHeader.StdId);
+
+            if (rxHeader.StdId == CAN_ID_CMD_GATEWAY) {
+                CAN_ApplyDownlinkFromPayload(rxData);
+                continue;
+            }
 
             if (xSemaphoreTake(gatewayDataMutex, portMAX_DELAY) == pdTRUE) {
                 switch (rxHeader.StdId) {
@@ -48,7 +82,6 @@ void CAN_ProcessRxMessage(void) {
 
                     case 0x200: // DrivingData (ECU2)
                         gatewayData.drivingData.speed = rxData[0];
-                        // ⭐️ 엔디안(상/하위 바이트) 조립 순서 버그 수정 완료
                         gatewayData.drivingData.distance = (rxData[2] << 8) | rxData[1];
                         printf("[CAN RX] ECU2(주행) 정상 수신! 속도:%d, 거리:%d\r\n",
                                 gatewayData.drivingData.speed, gatewayData.drivingData.distance);
@@ -61,49 +94,75 @@ void CAN_ProcessRxMessage(void) {
                         printf("[CAN RX] ECU1(환경) 수신 완료\r\n");
                         break;
 
-                    case 0x701: gatewayData.heartbeat1 = 1; break;
-                    case 0x702: gatewayData.heartbeat2 = 1; break;
-                    case 0x703: gatewayData.heartbeat3 = 1; break;
+                    case CAN_ID_HB_ECU1:
+                        Heartbeat_OnEcuReceived(1);
+                        gatewayData.heartbeat1 = 1;
+                        break;
+
+                    case CAN_ID_HB_ECU2:
+                        Heartbeat_OnEcuReceived(2);
+                        gatewayData.heartbeat2 = 1;
+                        break;
+
+                    case CAN_ID_HB_ECU3:
+                        Heartbeat_OnEcuReceived(3);
+                        gatewayData.heartbeat3 = 1;
+                        break;
+
+                    default:
+                        break;
                 }
                 xSemaphoreGive(gatewayDataMutex);
             }
         }
-        HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
-
     }
-
-    // ⭐️ [추가] 하드웨어 버퍼를 모두 깨끗하게 비웠으므로 다시 초인종(인터럽트)을 켭니다!
-    HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
 }
 
 void CAN_SendCommand(void) {
-    CAN_TxHeaderTypeDef txHeader;
+    CAN_TxHeaderTypeDef txHeader = {0};
     uint8_t txData[8] = {0};
     uint32_t txMailbox;
 
-    txHeader.StdId = 0x400;
+    if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0U) {
+        printf("[CAN TX ERROR] 메일박스 꽉 참 (0x400 송신 실패)\r\n");
+        return;
+    }
+
+    txHeader.StdId = CAN_ID_CMD_DOWNLINK;
     txHeader.RTR = CAN_RTR_DATA;
     txHeader.IDE = CAN_ID_STD;
     txHeader.DLC = 8;
+    txHeader.TransmitGlobalTime = DISABLE;
 
     txData[0] = parsedCommand.commandId;
     txData[1] = parsedCommand.targetEcu;
-    for (int i = 0; i < 6; i++) {
-        txData[2 + i] = parsedCommand.parameters[i];
-    }
+    memcpy(&txData[2], parsedCommand.parameters, 6);
 
-    printf("[CAN TX] 제어 명령 하달 - CMD:0x%02X, TARGET:ECU%d\r\n", txData[0], txData[1]);
-    HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox);
+    printf("[CAN TX] 0x400 제어 명령 하달 - CMD:0x%02X, TARGET:ECU%d\r\n",
+           txData[0], txData[1]);
+
+    if (HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox) != HAL_OK) {
+        printf("[CAN TX ERROR] 0x400 송신 실패\r\n");
+    }
 }
 
 void CAN_SendHeartbeat(void) {
-    CAN_TxHeaderTypeDef txHeader;
-    uint8_t txData[1] = {1};
+    CAN_TxHeaderTypeDef txHeader = {0};
+    uint8_t txData[1] = {0x01};
     uint32_t txMailbox;
 
-    txHeader.StdId = 0x704;
+    if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0U) {
+        printf("[CAN TX ERROR] 메일박스 꽉 참 (0x704 송신 실패)\r\n");
+        return;
+    }
+
+    txHeader.StdId = CAN_ID_HB_GATEWAY;
+    txHeader.RTR = CAN_RTR_DATA;
+    txHeader.IDE = CAN_ID_STD;
     txHeader.DLC = 1;
     txHeader.TransmitGlobalTime = DISABLE;
 
-    HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox);
+    if (HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox) != HAL_OK) {
+        printf("[CAN TX ERROR] 0x704 하트비트 송신 실패\r\n");
+    }
 }

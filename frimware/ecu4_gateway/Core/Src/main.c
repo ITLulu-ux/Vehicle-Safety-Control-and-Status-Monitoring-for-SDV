@@ -50,7 +50,6 @@
 
 /* USER CODE BEGIN PV */
 extern uint8_t uartRxBuffer[ 32 ];
-extern osMessageQId Queue_CAN_RxHandle;
 extern osSemaphoreId Sem_UART_RxHandle;
 
 // 구조체 변수를 메모리에 할당(생성)합니다!
@@ -187,18 +186,6 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-// CAN 수신 시 Queue에 신호 전송
-void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
-{
-    if (hcan->Instance == CAN1) {
-        //printf("DING DONG! (인터럽트 발생)\r\n");
-
-        // ⭐️ [추가] 태스크가 데이터를 안전하게 꺼낼 때까지 인터럽트 폭주를 막습니다.
-        HAL_CAN_DeactivateNotification(hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
-
-        osMessagePut(Queue_CAN_RxHandle, 1, 0);
-    }
-}
 // UART(라즈베리파이) 명령 수신 시 Semaphore 신호 전송
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {

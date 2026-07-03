@@ -23,13 +23,13 @@
 #include "main.h"
 #include "cmsis_os.h"
 
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
 #include "sensor_task.h"
-#include "can_task.h"
-#include "heartbeat_task.h"
 #include "sensor_data.h"
+#include "queue.h"
+#include "can_task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,10 +53,9 @@
 /* USER CODE END Variables */
 osThreadId Sensor_TaskHandle;
 osThreadId CAN_TX_TaskHandle;
-osThreadId Hearbeat_TaskHandle;
 osThreadId CAN_RX_TaskHandle;
-osMessageQId SensorQueueHandle;
-osSemaphoreId CAN_RX_BinarySemphoreHandle;
+osThreadId Heartbeat_TaskHandle;
+osSemaphoreId CAN_RX_BinarySemaphoreHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -64,9 +63,9 @@ osSemaphoreId CAN_RX_BinarySemphoreHandle;
 /* USER CODE END FunctionPrototypes */
 
 void StartSensorTask(void const * argument);
-void StartCanTxTask(void const * argument);
-void StartHeartbeatTask(void const * argument);
-void StartCanRxTask(void const * argument);
+void Start_CAN_TX_Task(void const * argument);
+void Start_CAN_RX_Task(void const * argument);
+void Start_Heartbeat_Task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -101,27 +100,32 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_MUTEX */
 
   /* Create the semaphores(s) */
-  /* definition and creation of CAN_RX_BinarySemphore */
-  osSemaphoreDef(CAN_RX_BinarySemphore);
-  CAN_RX_BinarySemphoreHandle = osSemaphoreCreate(osSemaphore(CAN_RX_BinarySemphore), 0);
+  /* definition and creation of CAN_RX_BinarySemaphore */
+  osSemaphoreDef(CAN_RX_BinarySemaphore);
+  CAN_RX_BinarySemaphoreHandle = osSemaphoreCreate(osSemaphore(CAN_RX_BinarySemaphore), 1);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
-  canRxSemaphore = (SemaphoreHandle_t)CAN_RX_BinarySemphoreHandle;
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
-  /* Create the queue(s) */
-  /* definition and creation of SensorQueue */
-  osMessageQDef(SensorQueue, 1, SensorData_t);
-  SensorQueueHandle = osMessageCreate(osMessageQ(SensorQueue), NULL);
-
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
-  sensorQueue = (QueueHandle_t)SensorQueueHandle;
+  sensorQueue = xQueueCreate(
+          1,
+          sizeof(SensorData_t));
+
+  if(sensorQueue == NULL)
+  {
+      printf("Queue Create Fail\r\n");
+  }
+  else
+  {
+      printf("Queue Create OK\r\n");
+  }
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -130,16 +134,16 @@ void MX_FREERTOS_Init(void) {
   Sensor_TaskHandle = osThreadCreate(osThread(Sensor_Task), NULL);
 
   /* definition and creation of CAN_TX_Task */
-  osThreadDef(CAN_TX_Task, StartCanTxTask, osPriorityAboveNormal, 0, 256);
+  osThreadDef(CAN_TX_Task, Start_CAN_TX_Task, osPriorityAboveNormal, 0, 256);
   CAN_TX_TaskHandle = osThreadCreate(osThread(CAN_TX_Task), NULL);
 
-  /* definition and creation of Hearbeat_Task */
-  osThreadDef(Hearbeat_Task, StartHeartbeatTask, osPriorityLow, 0, 128);
-  Hearbeat_TaskHandle = osThreadCreate(osThread(Hearbeat_Task), NULL);
-
   /* definition and creation of CAN_RX_Task */
-  osThreadDef(CAN_RX_Task, StartCanRxTask, osPriorityHigh, 0, 256);
+  osThreadDef(CAN_RX_Task, Start_CAN_RX_Task, osPriorityHigh, 0, 256);
   CAN_RX_TaskHandle = osThreadCreate(osThread(CAN_RX_Task), NULL);
+
+  /* definition and creation of Heartbeat_Task */
+  osThreadDef(Heartbeat_Task, Start_Heartbeat_Task, osPriorityLow, 0, 128);
+  Heartbeat_TaskHandle = osThreadCreate(osThread(Heartbeat_Task), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -158,53 +162,59 @@ void StartSensorTask(void const * argument)
 {
   /* USER CODE BEGIN StartSensorTask */
   /* Infinite loop */
-  SensorTask(argument);
+	SensorTask(argument);
   /* USER CODE END StartSensorTask */
 }
 
-/* USER CODE BEGIN Header_StartCanTxTask */
+/* USER CODE BEGIN Header_Start_CAN_TX_Task */
 /**
 * @brief Function implementing the CAN_TX_Task thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartCanTxTask */
-void StartCanTxTask(void const * argument)
+/* USER CODE END Header_Start_CAN_TX_Task */
+void Start_CAN_TX_Task(void const * argument)
 {
-  /* USER CODE BEGIN StartCanTxTask */
+  /* USER CODE BEGIN Start_CAN_TX_Task */
   /* Infinite loop */
-  CanTxTask(argument);
-  /* USER CODE END StartCanTxTask */
+	CanTxTask(argument);
+  /* USER CODE END Start_CAN_TX_Task */
 }
 
-/* USER CODE BEGIN Header_StartHeartbeatTask */
-/**
-* @brief Function implementing the Hearbeat_Task thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartHeartbeatTask */
-void StartHeartbeatTask(void const * argument)
-{
-  /* USER CODE BEGIN StartHeartbeatTask */
-  /* Infinite loop */
-  HeartbeatTask(argument);
-  /* USER CODE END StartHeartbeatTask */
-}
-
-/* USER CODE BEGIN Header_StartCanRxTask */
+/* USER CODE BEGIN Header_Start_CAN_RX_Task */
 /**
 * @brief Function implementing the CAN_RX_Task thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartCanRxTask */
-void StartCanRxTask(void const * argument)
+/* USER CODE END Header_Start_CAN_RX_Task */
+void Start_CAN_RX_Task(void const * argument)
 {
-  /* USER CODE BEGIN StartCanRxTask */
+  /* USER CODE BEGIN Start_CAN_RX_Task */
   /* Infinite loop */
-  CanRxTask(argument);
-  /* USER CODE END StartCanRxTask */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END Start_CAN_RX_Task */
+}
+
+/* USER CODE BEGIN Header_Start_Heartbeat_Task */
+/**
+* @brief Function implementing the Heartbeat_Task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_Start_Heartbeat_Task */
+void Start_Heartbeat_Task(void const * argument)
+{
+  /* USER CODE BEGIN Start_Heartbeat_Task */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END Start_Heartbeat_Task */
 }
 
 /* Private application code --------------------------------------------------*/

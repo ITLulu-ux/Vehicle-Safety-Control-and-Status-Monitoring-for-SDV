@@ -14,6 +14,7 @@
 #include "main.h"
 #include "i2c.h"
 #include "bh1750.h"
+#include <stdio.h>
 
 I2C_HandleTypeDef 	*bh1750_i2c;	// Handler to I2C interface
 BH1750_Mode_t 		bh1750Mode;	// Current sensor mode
@@ -64,14 +65,24 @@ BH1750_STATUS BH1750_PowerState(uint8_t PowerOn)
 //
 BH1750_STATUS BH1750_SetMode(BH1750_Mode_t Mode)
 {
-	if(!((Mode >> 4) || (Mode >> 5))) return BH1750_ERROR;
-	if((Mode & 0x0F) > 3) return BH1750_ERROR;
+    if(!((Mode >> 4) || (Mode >> 5)))
+        return BH1750_ERROR;
 
-	bh1750Mode = Mode;
-	if(HAL_OK == HAL_I2C_Master_Transmit(bh1750_i2c, BH1750_ADDRESS, &Mode, 1, 10))
-		return BH1750_OK;
+    if((Mode & 0x0F) > 3)
+        return BH1750_ERROR;
 
-	return BH1750_ERROR;
+    bh1750Mode = Mode;
+
+    if(HAL_OK == HAL_I2C_Master_Transmit(bh1750_i2c,
+                                         BH1750_ADDRESS,
+                                         (uint8_t *)&Mode,
+                                         1,
+                                         10))
+    {
+        return BH1750_OK;
+    }
+
+    return BH1750_ERROR;
 }
 
 //

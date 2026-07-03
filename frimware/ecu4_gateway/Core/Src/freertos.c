@@ -50,6 +50,11 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 SemaphoreHandle_t gatewayDataMutex = NULL;
+
+extern CAN_HandleTypeDef hcan1;
+extern UART_HandleTypeDef huart2;
+extern uint8_t uartRxBuffer[32];
+
 /* USER CODE END Variables */
 osThreadId Task_CAN_ProcesHandle;
 osThreadId Task_UART_ProceHandle;
@@ -57,9 +62,6 @@ osThreadId Task_HeartbeatHandle;
 osMessageQId Queue_CAN_RxHandle;
 osSemaphoreId Sem_UART_RxHandle;
 
-extern CAN_HandleTypeDef hcan1;
-extern UART_HandleTypeDef huart2;
-extern uint8_t uartRxBuffer[32];
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */

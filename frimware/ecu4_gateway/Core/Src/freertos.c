@@ -29,6 +29,7 @@
 #include "uart_comm.h"
 #include "heartbeat.h"
 #include "semphr.h"
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,6 +56,10 @@ osThreadId Task_UART_ProceHandle;
 osThreadId Task_HeartbeatHandle;
 osMessageQId Queue_CAN_RxHandle;
 osSemaphoreId Sem_UART_RxHandle;
+
+extern CAN_HandleTypeDef hcan1;
+extern UART_HandleTypeDef huart2;
+extern uint8_t uartRxBuffer[32];
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -121,7 +126,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* definition and creation of Task_CAN_Proces */
-  osThreadDef(Task_CAN_Proces, Start_Task_Can, osPriorityHigh, 0, 128);
+  osThreadDef(Task_CAN_Proces, Start_Task_Can, osPriorityHigh, 0, 512);
   Task_CAN_ProcesHandle = osThreadCreate(osThread(Task_CAN_Proces), NULL);
 
   /* definition and creation of Task_UART_Proce */
@@ -148,15 +153,23 @@ void MX_FREERTOS_Init(void) {
 void Start_Task_Can(void const * argument)
 {
   /* USER CODE BEGIN Start_Task_Can */
-	osEvent event;
-	  for(;;)
-	  {
-	    // CAN RX 인터럽트 발생 시까지 무한 대기
-	    event = osMessageGet(Queue_CAN_RxHandle, osWaitForever);
-	    if(event.status == osEventMessage) {
-	        CAN_ProcessRxMessage();
-	    }
-	  }
+    // ⭐️ [추가] OS 셋업이 끝나고 태스크가 깨어난 '지금' 통신을 시작합니다!
+    if (HAL_CAN_Start(&hcan1) == HAL_OK) {
+        printf("[CAN] Start OK\r\n");
+    }
+    // ⭐️ [추가] CAN 수신 인터럽트(초인종) 켜기
+    HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+
+    osEvent event;
+    for(;;)
+    {
+        // CAN RX 인터럽트 발생 시까지 무한 대기
+        event = osMessageGet(Queue_CAN_RxHandle, osWaitForever);
+        if(event.status == osEventMessage) {
+            printf("[Task] 큐 수신 완료! 파싱 진입...\r\n"); // 생사 확인용 로그
+            CAN_ProcessRxMessage();
+        }
+    }
   /* USER CODE END Start_Task_Can */
 }
 
@@ -170,15 +183,18 @@ void Start_Task_Can(void const * argument)
 void Start_Task_UART(void const * argument)
 {
   /* USER CODE BEGIN Start_Task_UART */
-	for(;;)
-	  {
-	    // 100ms마다 라즈베리파이로 데이터 전송, 그 사이에 명령이 오면 수신 파싱
-	    if(osSemaphoreWait(Sem_UART_RxHandle, 100) == osOK) {
-	        UART_ProcessRxMessage();
-	    } else {
-	        UART_SendGatewayData();
-	    }
-	  }
+    // ⭐️ [추가] 라즈베리파이 수신 초인종도 이 타이밍에 켭니다.
+    HAL_UART_Receive_IT(&huart2, uartRxBuffer, sizeof(uartRxBuffer));
+
+    for(;;)
+    {
+        // 100ms마다 라즈베리파이로 데이터 전송, 그 사이에 명령이 오면 수신 파싱
+        if(osSemaphoreWait(Sem_UART_RxHandle, 100) == osOK) {
+            UART_ProcessRxMessage();
+        } else {
+            UART_SendGatewayData();
+        }
+    }
   /* USER CODE END Start_Task_UART */
 }
 

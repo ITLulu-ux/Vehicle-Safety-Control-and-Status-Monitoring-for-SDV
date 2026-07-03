@@ -7,19 +7,24 @@
 #include <stdio.h>
 
 void CAN_Filter_Config(void) {
+
     CAN_FilterTypeDef canFilterConfig;
     canFilterConfig.FilterBank = 0;
     canFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
     canFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+
     canFilterConfig.FilterIdHigh = 0x0000;
     canFilterConfig.FilterIdLow = 0x0000;
     canFilterConfig.FilterMaskIdHigh = 0x0000;
     canFilterConfig.FilterMaskIdLow = 0x0000;
+
     canFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
     canFilterConfig.FilterActivation = ENABLE;
     canFilterConfig.SlaveStartFilterBank = 14;
 
-    HAL_CAN_ConfigFilter(&hcan1, &canFilterConfig);
+    if (HAL_CAN_ConfigFilter(&hcan1, &canFilterConfig) != HAL_OK) {
+            Error_Handler();
+        }
 }
 
 void CAN_ProcessRxMessage(void) {
@@ -29,7 +34,7 @@ void CAN_ProcessRxMessage(void) {
     while (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0) {
         if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxHeader, rxData) == HAL_OK) {
 
-        	printf("[CAN RX DEBUG] 수신된 메시지 ID: 0x%03X\r\n", (unsigned int)rxHeader.StdId);
+            printf("[CAN RX DEBUG] 수신된 메시지 ID: 0x%03X\r\n", (unsigned int)rxHeader.StdId);
 
             if (xSemaphoreTake(gatewayDataMutex, portMAX_DELAY) == pdTRUE) {
                 switch (rxHeader.StdId) {
@@ -43,8 +48,10 @@ void CAN_ProcessRxMessage(void) {
 
                     case 0x200: // DrivingData (ECU2)
                         gatewayData.drivingData.speed = rxData[0];
-                        gatewayData.drivingData.distance = (rxData[1] << 8) | rxData[2];
-                        printf("[CAN RX] ECU2(주행) 수신 완료\r\n");
+                        // ⭐️ 엔디안(상/하위 바이트) 조립 순서 버그 수정 완료
+                        gatewayData.drivingData.distance = (rxData[2] << 8) | rxData[1];
+                        printf("[CAN RX] ECU2(주행) 정상 수신! 속도:%d, 거리:%d\r\n",
+                                gatewayData.drivingData.speed, gatewayData.drivingData.distance);
                         break;
 
                     case 0x300: // SensorData (ECU1)
@@ -61,7 +68,12 @@ void CAN_ProcessRxMessage(void) {
                 xSemaphoreGive(gatewayDataMutex);
             }
         }
+        HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+
     }
+
+    // ⭐️ [추가] 하드웨어 버퍼를 모두 깨끗하게 비웠으므로 다시 초인종(인터럽트)을 켭니다!
+    HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
 }
 
 void CAN_SendCommand(void) {

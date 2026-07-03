@@ -25,7 +25,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "driving_data.h"
+#include "adc_speed.h"
+#include "ultrasonic.h"
+#include "can_manager.h"
+#include "lcd_manager.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,7 +49,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+DrivingData_t drivingData = {0, 0};
+uint16_t ultrasonic_distance = 0;
+osMutexId drivingMutexHandle;
 /* USER CODE END Variables */
 osThreadId LCD_TaskHandle;
 osThreadId CAN_RX_TaskHandle;
@@ -53,6 +59,7 @@ osThreadId Distance_TaskHandle;
 osThreadId Speed_TaskHandle;
 osThreadId CAN_TX_TaskHandle;
 osThreadId Heartbeat_TaskHandle;
+osMutexId Mutex_I2CHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -93,9 +100,15 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
+  /* Create the mutex(es) */
+  /* definition and creation of Mutex_I2C */
+  osMutexDef(Mutex_I2C);
+  Mutex_I2CHandle = osMutexCreate(osMutex(Mutex_I2C));
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
+  osMutexDef(drivingMutex);
+  drivingMutexHandle = osMutexCreate(osMutex(drivingMutex));
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
@@ -154,7 +167,7 @@ void StartDefaultTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	  LCD_Task_Run();
   }
   /* USER CODE END StartDefaultTask */
 }
@@ -172,7 +185,7 @@ void StartTask02(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	  CAN_RX_Task_Run();
   }
   /* USER CODE END StartTask02 */
 }
@@ -188,9 +201,10 @@ void StartTask03(void const * argument)
 {
   /* USER CODE BEGIN StartTask03 */
   /* Infinite loop */
+
   for(;;)
   {
-    osDelay(1);
+	  Distance_Task_Run();
   }
   /* USER CODE END StartTask03 */
 }
@@ -208,7 +222,7 @@ void StartTask04(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	  Speed_Task_Run();
   }
   /* USER CODE END StartTask04 */
 }
@@ -226,7 +240,7 @@ void StartTask05(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	  CAN_TX_Task_Run();
   }
   /* USER CODE END StartTask05 */
 }
@@ -244,7 +258,7 @@ void StartTask06(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	  Heartbeat_Task_Run();
   }
   /* USER CODE END StartTask06 */
 }

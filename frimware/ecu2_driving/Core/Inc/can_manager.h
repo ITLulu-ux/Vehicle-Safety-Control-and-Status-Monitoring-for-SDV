@@ -8,6 +8,8 @@
 #ifndef INC_CAN_MANAGER_H_
 #define INC_CAN_MANAGER_H_
 
+#include <stdint.h>
+
 #define CAN_ID_CMD_DOWNLINK  0x400U
 #define ECU2_TARGET_ID       0x02U
 

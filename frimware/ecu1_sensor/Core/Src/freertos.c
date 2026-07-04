@@ -201,10 +201,9 @@ void Start_CAN_RX_Task(void const * argument)
 void Start_Heartbeat_Task(void const * argument)
 {
   /* USER CODE BEGIN Start_Heartbeat_Task */
-  /* Infinite loop */
-  for(;;)
+  for (;;)
   {
-    osDelay(1);
+    Heartbeat_Task_Run();
   }
   /* USER CODE END Start_Heartbeat_Task */
 }

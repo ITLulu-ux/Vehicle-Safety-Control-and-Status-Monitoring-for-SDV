@@ -17,6 +17,10 @@ void Heartbeat_OnEcuReceived(uint8_t ecuNum)
 
 void Heartbeat_CheckTimeout(void)
 {
+    uint8_t hb1 = 0;
+    uint8_t hb2 = 0;
+    uint8_t hb3 = 0;
+
     if (xSemaphoreTake(gatewayDataMutex, portMAX_DELAY) != pdTRUE) {
         return;
     }
@@ -45,7 +49,13 @@ void Heartbeat_CheckTimeout(void)
         }
     }
 
+    hb1 = gatewayData.heartbeat1;
+    hb2 = gatewayData.heartbeat2;
+    hb3 = gatewayData.heartbeat3;
+
     xSemaphoreGive(gatewayDataMutex);
+
+    printf("[HB] ECU1:%u ECU2:%u ECU3:%u\r\n", hb1, hb2, hb3);
 }
 
 void OTA_HandleLocalCommand(const UartCommand_t *cmd)

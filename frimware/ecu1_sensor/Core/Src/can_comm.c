@@ -74,6 +74,24 @@ void CAN_RX_Task_Run(void)
     osDelay(10);
 }
 
+void Heartbeat_Task_Run(void)
+{
+    CAN_TxHeaderTypeDef hbHeader = {0};
+    uint8_t hbData[1] = {0x01};
+    uint32_t txMailbox;
+
+    hbHeader.StdId = CAN_ID_HB_ECU1;
+    hbHeader.IDE = CAN_ID_STD;
+    hbHeader.RTR = CAN_RTR_DATA;
+    hbHeader.DLC = 1;
+
+    if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) > 0) {
+        HAL_CAN_AddTxMessage(&hcan1, &hbHeader, hbData, &txMailbox);
+    }
+
+    osDelay(2000);
+}
+
 HAL_StatusTypeDef CAN_SendSensorData(SensorData_t *data)
 {
     uint8_t txData[8];

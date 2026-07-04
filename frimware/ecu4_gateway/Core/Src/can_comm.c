@@ -122,6 +122,15 @@ void CAN_ProcessRxMessage(void) {
                            rxData[0], rxData[1],
                            (unsigned int)((rxData[2] << 8) | rxData[3]));
                     break;
+                case CAN_ID_HB_ECU1:
+                    printf("[CAN RX] HB ECU1 alive\r\n");
+                    break;
+                case CAN_ID_HB_ECU2:
+                    printf("[CAN RX] HB ECU2 alive\r\n");
+                    break;
+                case CAN_ID_HB_ECU3:
+                    printf("[CAN RX] HB ECU3 alive\r\n");
+                    break;
                 default:
                     break;
             }

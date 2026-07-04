@@ -60,6 +60,7 @@ volatile uint32_t Difference = 0;
 volatile uint8_t Is_First_Captured = 0;  // 첫 번째 엣지(Rising) 캡처 여부 플래그
 
 extern uint16_t ultrasonic_distance; // freertos.c에 있는 변수 가져오기
+volatile uint8_t ota_mode_active = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -111,8 +112,6 @@ int main(void)
   /* USER CODE BEGIN 2 */
 	// 1. I2C LCD 하드웨어 핸들 매핑
 	lcd.hi2c = &hi2c1;
-	uint8_t start_msg[] = "System Start!\r\n";
-	HAL_UART_Transmit(&huart2, start_msg, sizeof(start_msg) - 1, 100);
 
 	// 2. I2C LCD 주소 자동 스캔 및 설정
 	HAL_Delay(1000);
@@ -141,19 +140,13 @@ int main(void)
 	canFilterConfig.SlaveStartFilterBank = 14;
 
 	if (HAL_CAN_ConfigFilter(&hcan1, &canFilterConfig) != HAL_OK) {
-		uint8_t err_msg[] = "CAN Filter Error!\r\n";
-		HAL_UART_Transmit(&huart2, err_msg, sizeof(err_msg) - 1, 100);
+		Error_Handler();
 	}
 
 	// CAN 통신 시작
 	HAL_CAN_Start(&hcan1);
 
-	// 수신 인터럽트 활성화
-	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING)
-			!= HAL_OK) {
-		uint8_t err_msg[] = "CAN Interrupt Error!\r\n";
-		HAL_UART_Transmit(&huart2, err_msg, sizeof(err_msg) - 1, 100);
-	}
+	// RX는 CAN_RX_Task에서 폴링 (ECU4와 동일, 인터럽트+폴링 동시 사용 금지)
 
 	// 5. 초음파 Echo 핀 캡처 인터럽트 시작
 	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
@@ -226,9 +219,9 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 // 1. 변수 선언 (volatile 키워드 추가: 인터럽트와 태스크 간 데이터 동기화 보장)
-// UART 출력용
+// UART 미사용 (디버그는 ECU4 CAN RX에서 확인)
 int __io_putchar(int ch) {
-	HAL_UART_Transmit(&huart2, (uint8_t*) &ch, 1, 10);
+	(void)ch;
 	return ch;
 }
 
@@ -255,11 +248,8 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
 				Difference = (0xFFFFFFFF - IC_Val1) + IC_Val2; // 오버플로우 처리
 			}
 
-			// 거리 계산: (시간차(us) * 0.034) / 2
-			ultrasonic_distance = (uint16_t) (Difference * 0.034f / 2.0f);
-
-			// ⭐️ [디버그 추가] 초음파 하드웨어 인터럽트 계산 확인
-			printf("[TIM2 IC] 초음파 원시 거리: %d cm\r\n", ultrasonic_distance);
+			// 거리(cm) = 펄스폭(us) * 0.034 / 2  →  정수 연산 (ISR에서 float 금지)
+			ultrasonic_distance = (uint16_t)((Difference * 17U) / 1000U);
 
 			Is_First_Captured = 0;
 

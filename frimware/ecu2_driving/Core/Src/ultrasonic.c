@@ -27,5 +27,5 @@ void Distance_Task_Run(void) {
 	drivingData.distance = ultrasonic_distance;
 	osMutexRelease(drivingMutexHandle);
 
-	osDelay(50);
+	osDelay(1949);
 }

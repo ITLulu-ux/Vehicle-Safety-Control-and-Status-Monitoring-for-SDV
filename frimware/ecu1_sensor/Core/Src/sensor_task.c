@@ -4,7 +4,6 @@
 #include "bh1750.h"
 #include "tim.h"
 #include "i2c.h"
-#include <stdio.h>
 
 void SensorTask(void const *argument)
 {
@@ -42,13 +41,9 @@ void SensorTask(void const *argument)
     	{
     	    sensorData.temperature = hdht11.temperature;
     	    sensorData.humidity = hdht11.humidity;
-
-    	    printf("DHT11 OK\r\n");
     	}
     	else
     	{
-    	    printf("DHT11 Fail\r\n");
-
     	    osDelay(2000);
     	    continue;
     	}
@@ -58,11 +53,6 @@ void SensorTask(void const *argument)
         {
             sensorData.lux = (uint16_t)lux;
         }
-
-        printf("CAN Tx T=%d H=%d L=%u\r\n",
-               sensorData.temperature,
-               sensorData.humidity,
-               sensorData.lux);
 
         xQueueOverwrite(sensorQueue, &sensorData);
 

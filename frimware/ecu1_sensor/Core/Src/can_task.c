@@ -5,8 +5,6 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 
-#include <stdio.h>
-
 void CanTxTask(void const *argument)
 {
     SensorData_t sensorData;
@@ -17,11 +15,6 @@ void CanTxTask(void const *argument)
                          &sensorData,
                          portMAX_DELAY) == pdPASS)
         {
-        	 printf("CAN Tx T=%d H=%d L=%u\r\n",
-        	                   sensorData.temperature,
-        	                   sensorData.humidity,
-        	                   sensorData.lux);
-
             CAN_SendSensorData(&sensorData);
         }
     }

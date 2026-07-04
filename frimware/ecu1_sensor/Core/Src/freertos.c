@@ -30,6 +30,7 @@
 #include "sensor_data.h"
 #include "queue.h"
 #include "can_task.h"
+#include "can_comm.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -118,14 +119,6 @@ void MX_FREERTOS_Init(void) {
           1,
           sizeof(SensorData_t));
 
-  if(sensorQueue == NULL)
-  {
-      printf("Queue Create Fail\r\n");
-  }
-  else
-  {
-      printf("Queue Create OK\r\n");
-  }
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -191,10 +184,9 @@ void Start_CAN_TX_Task(void const * argument)
 void Start_CAN_RX_Task(void const * argument)
 {
   /* USER CODE BEGIN Start_CAN_RX_Task */
-  /* Infinite loop */
-  for(;;)
+  for (;;)
   {
-    osDelay(1);
+    CAN_RX_Task_Run();
   }
   /* USER CODE END Start_CAN_RX_Task */
 }

@@ -68,7 +68,7 @@ void lcd_send_data(I2C_LCD_HandleTypeDef *lcd, char data)
 
     if(ret != HAL_OK)
     {
-        Error_Handler();
+        return;
     }
 }
 

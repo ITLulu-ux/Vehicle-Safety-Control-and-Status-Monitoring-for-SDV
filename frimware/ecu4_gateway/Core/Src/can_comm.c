@@ -63,8 +63,6 @@ void CAN_ProcessRxMessage(void) {
     while (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0) {
         if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxHeader, rxData) == HAL_OK) {
 
-            printf("[CAN RX DEBUG] 수신된 메시지 ID: 0x%03X\r\n", (unsigned int)rxHeader.StdId);
-
             if (rxHeader.StdId == CAN_ID_CMD_GATEWAY) {
                 CAN_ApplyDownlinkFromPayload(rxData);
                 continue;
@@ -72,26 +70,22 @@ void CAN_ProcessRxMessage(void) {
 
             if (xSemaphoreTake(gatewayDataMutex, portMAX_DELAY) == pdTRUE) {
                 switch (rxHeader.StdId) {
-                    case 0x100: // ControlData (ECU3)
+                    case 0x100:
                         gatewayData.controlData.riskLevel = rxData[0];
                         gatewayData.controlData.brakeLevel = rxData[1];
                         gatewayData.controlData.wiperState = rxData[2];
                         gatewayData.controlData.ledState = rxData[3];
-                        printf("[CAN RX] ECU3(제어) 수신 완료\r\n");
                         break;
 
-                    case 0x200: // DrivingData (ECU2)
+                    case 0x200:
                         gatewayData.drivingData.speed = rxData[0];
                         gatewayData.drivingData.distance = (rxData[2] << 8) | rxData[1];
-                        printf("[CAN RX] ECU2(주행) 정상 수신! 속도:%d, 거리:%d\r\n",
-                                gatewayData.drivingData.speed, gatewayData.drivingData.distance);
                         break;
 
-                    case 0x300: // SensorData (ECU1)
+                    case 0x300:
                         gatewayData.sensorData.temp = (float)rxData[0];
                         gatewayData.sensorData.humi = (float)rxData[1];
                         gatewayData.sensorData.lux = (rxData[2] << 8) | rxData[3];
-                        printf("[CAN RX] ECU1(환경) 수신 완료\r\n");
                         break;
 
                     case CAN_ID_HB_ECU1:
@@ -113,6 +107,23 @@ void CAN_ProcessRxMessage(void) {
                         break;
                 }
                 xSemaphoreGive(gatewayDataMutex);
+            }
+
+            switch (rxHeader.StdId) {
+                case 0x100:
+                    printf("[CAN RX] ECU3(제어) 수신 완료\r\n");
+                    break;
+                case 0x200:
+                    printf("[CAN RX] ECU2 속도:%d, 거리:%d\r\n",
+                           rxData[0], (rxData[2] << 8) | rxData[1]);
+                    break;
+                case 0x300:
+                    printf("[CAN RX] ECU1 T:%d H:%d L:%u\r\n",
+                           rxData[0], rxData[1],
+                           (unsigned int)((rxData[2] << 8) | rxData[3]));
+                    break;
+                default:
+                    break;
             }
         }
     }

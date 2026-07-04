@@ -51,7 +51,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+volatile uint8_t ota_mode_active = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -100,10 +100,7 @@ int main(void)
   MX_TIM2_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  if(BH1750_Init(&hi2c1) != BH1750_OK)
-  {
-      printf("BH1750 Init Fail\r\n");
-  }
+  (void)BH1750_Init(&hi2c1);
   if(HAL_TIM_Base_Start(&htim2) != HAL_OK)
   {
       Error_Handler();

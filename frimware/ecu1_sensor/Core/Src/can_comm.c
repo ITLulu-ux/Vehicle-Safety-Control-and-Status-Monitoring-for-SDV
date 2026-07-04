@@ -2,12 +2,53 @@
 
 #include "can_comm.h"
 #include "can.h"
+#include "cmsis_os.h"
 
 CAN_TxHeaderTypeDef TxHeader;
 uint32_t TxMailbox;
 
+extern CAN_HandleTypeDef hcan1;
+
+static void CAN_HandleDownlink(const uint8_t *rxData)
+{
+    if (rxData[1] != ECU1_TARGET_ID) {
+        return;
+    }
+
+    switch (rxData[0]) {
+        case 0x01:
+            HAL_NVIC_SystemReset();
+            break;
+        case 0x02:
+            ota_mode_active = 1;
+            break;
+        case 0x04:
+            ota_mode_active = 0;
+            break;
+        default:
+            break;
+    }
+}
+
 void CAN_Init(void)
 {
+    CAN_FilterTypeDef canFilterConfig = {0};
+
+    canFilterConfig.FilterBank = 0;
+    canFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+    canFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+    canFilterConfig.FilterIdHigh = 0x0000;
+    canFilterConfig.FilterIdLow = 0x0000;
+    canFilterConfig.FilterMaskIdHigh = 0x0000;
+    canFilterConfig.FilterMaskIdLow = 0x0000;
+    canFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+    canFilterConfig.FilterActivation = ENABLE;
+    canFilterConfig.SlaveStartFilterBank = 14;
+
+    if (HAL_CAN_ConfigFilter(&hcan1, &canFilterConfig) != HAL_OK) {
+        Error_Handler();
+    }
+
     HAL_CAN_Start(&hcan1);
 
     TxHeader.StdId = 0x300;
@@ -16,21 +57,37 @@ void CAN_Init(void)
     TxHeader.DLC = 4;
 }
 
+void CAN_RX_Task_Run(void)
+{
+    CAN_RxHeaderTypeDef rxHeader;
+    uint8_t rxData[8];
+
+    while (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) > 0) {
+        if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxHeader, rxData) != HAL_OK) {
+            break;
+        }
+        if (rxHeader.StdId == CAN_ID_CMD_DOWNLINK) {
+            CAN_HandleDownlink(rxData);
+        }
+    }
+
+    osDelay(10);
+}
+
 HAL_StatusTypeDef CAN_SendSensorData(SensorData_t *data)
 {
     uint8_t txData[8];
 
-    int16_t temp = (int16_t)(data->temperature * 10);
-    int16_t hum  = (int16_t)(data->humidity * 10);
-
     txData[0] = data->temperature;
     txData[1] = data->humidity;
-
     txData[2] = (uint8_t)(data->lux >> 8);
     txData[3] = (uint8_t)(data->lux);
-
     txData[4] = 0;
     txData[5] = 0;
+
+    if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0U) {
+        return HAL_BUSY;
+    }
 
     return HAL_CAN_AddTxMessage(&hcan1,
                                 &TxHeader,

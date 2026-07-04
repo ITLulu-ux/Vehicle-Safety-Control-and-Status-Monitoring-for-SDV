@@ -225,14 +225,6 @@ uint8_t DHT11_Read(DHT11_HandleTypeDef *dht)
 
 	genParity = humVal + humDec + tempVal + tempDec;
 
-	printf("Hum=%d.%d Temp=%d.%d Parity=%d Gen=%d\r\n",
-	       humVal,
-	       humDec,
-	       tempVal,
-	       tempDec,
-	       parityVal,
-	       genParity);
-
 	dht->temperature = tempVal;
 	dht->humidity = humVal;
 

@@ -29,5 +29,5 @@ void Speed_Task_Run(void) {
 		osMutexRelease(drivingMutexHandle);
 	}
 
-	osDelay(100);
+	osDelay(2000);
 }

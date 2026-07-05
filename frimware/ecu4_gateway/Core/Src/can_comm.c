@@ -111,7 +111,9 @@ void CAN_ProcessRxMessage(void) {
 
             switch (rxHeader.StdId) {
                 case 0x100:
-                    printf("[CAN RX] ECU3(제어) 수신 완료\r\n");
+                    printf("[CAN RX] ECU3 위험:%u 브레이크:%u 와이퍼:%u LED:%u\r\n",
+                           (unsigned int)rxData[0], (unsigned int)rxData[1],
+                           (unsigned int)rxData[2], (unsigned int)rxData[3]);
                     break;
                 case 0x200:
                     printf("[CAN RX] ECU2 속도:%d, 거리:%d\r\n",

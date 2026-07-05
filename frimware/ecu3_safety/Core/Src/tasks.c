@@ -42,7 +42,7 @@ void StartTask_CAN_RX(void *argument)
                 case CAN_ID_ECU2_DRIVE:
                     if (osMutexAcquire(Mutex_RiskDataHandle, osWaitForever) == osOK) {
                         drivingData.speed = rxMsg.Data[0];
-                        drivingData.distance = (rxMsg.Data[1] << 8) | rxMsg.Data[2];
+                        drivingData.distance = (rxMsg.Data[2] << 8) | rxMsg.Data[1];
                         osMutexRelease(Mutex_RiskDataHandle);
                     }
                     // 수신 즉시 위험도 계산 노드 구동

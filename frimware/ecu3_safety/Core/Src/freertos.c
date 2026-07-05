@@ -100,7 +100,7 @@ const osThreadAttr_t defaultTask_attributes = {
 osThreadId_t Task_CAN_RXHandle;
 const osThreadAttr_t Task_CAN_RX_attributes = {
   .name = "Task_CAN_RX",
-  .stack_size = 128 * 4,
+  .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityHigh,
 };
 /* Definitions for Task_LED */
@@ -135,14 +135,14 @@ const osThreadAttr_t Task_Risk_attributes = {
 osThreadId_t Task_BrakeHandle;
 const osThreadAttr_t Task_Brake_attributes = {
   .name = "Task_Brake",
-  .stack_size = 128 * 4,
+  .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for Task_Wiper */
 osThreadId_t Task_WiperHandle;
 const osThreadAttr_t Task_Wiper_attributes = {
   .name = "Task_Wiper",
-  .stack_size = 128 * 4,
+  .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for Queue_CAN_RX */
@@ -235,7 +235,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of Queue_CAN_RX */
-  Queue_CAN_RXHandle = osMessageQueueNew (16, 12, &Queue_CAN_RX_attributes);
+  Queue_CAN_RXHandle = osMessageQueueNew (16, sizeof(CAN_Rx_Format_t), &Queue_CAN_RX_attributes);
 
   /* creation of Queue_DTC */
   Queue_DTCHandle = osMessageQueueNew (16, 4, &Queue_DTC_attributes);
@@ -326,7 +326,7 @@ void StartCANRXTask(void *argument)
 		                  case CAN_ID_ECU2_DRIVE:
 		                      if (osMutexAcquire(Mutex_RiskDataHandle, osWaitForever) == osOK) {
 		                          drivingData.speed = rxMsg.Data[0];
-		                          drivingData.distance = (rxMsg.Data[1] << 8) | rxMsg.Data[2];
+		                          drivingData.distance = (rxMsg.Data[2] << 8) | rxMsg.Data[1];
 		                          osMutexRelease(Mutex_RiskDataHandle);
 		                      }
 		                      // 수신 즉시 위험도 계산 노드 구동
@@ -377,7 +377,7 @@ void StartCANTXTask(void *argument)
   for(;;)
   {
 	CAN_Send_Status();
-    osDelay(1);
+    osDelay(1000);
   }
   /* USER CODE END StartCANTXTask */
 }

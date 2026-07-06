@@ -15,6 +15,17 @@ static void CAN_HandleDownlink(const uint8_t *rxData)
         return;
     }
 
+    if (ota_mode_active != 0U) {
+        switch (rxData[0]) {
+            case CMD_OTA_START:
+            case CMD_OTA_DATA:
+            case CMD_OTA_END:
+                break;
+            default:
+                return;
+        }
+    }
+
     switch (rxData[0]) {
         case CMD_RESET:
             HAL_NVIC_SystemReset();

@@ -16,6 +16,10 @@
 #define CMD_OTA_DATA          0x03U
 #define CMD_OTA_END           0x04U
 
+#define ECU_TARGET_ECU1       0x01U
+#define ECU_TARGET_ECU2       0x02U
+#define ECU_TARGET_ECU3       0x03U
+
 void CAN_Filter_Config(void);
 void CAN_ProcessRxMessage(void);
 void CAN_TxDownlink(const uint8_t *data);

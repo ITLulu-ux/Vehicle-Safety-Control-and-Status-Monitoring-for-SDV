@@ -8,6 +8,7 @@
 #include <string.h>
 
 uint8_t uartRxBuffer[UART_DOWNLINK_PACKET_LEN];
+static volatile uint8_t uartOtaModeActive = 0U;
 
 // [TX] 라즈베리파이로 통합 데이터 송신 (JSON, Pi DB 연동용)
 void UART_SendGatewayData(void) {
@@ -15,6 +16,10 @@ void UART_SendGatewayData(void) {
     SensorData_t sensor;
     DrivingData_t driving;
     uint8_t hb1, hb2, hb3;
+
+    if (uartOtaModeActive != 0U) {
+        return;
+    }
 
     if (xSemaphoreTake(gatewayDataMutex, portMAX_DELAY) != pdTRUE) {
         return;
@@ -47,6 +52,21 @@ void UART_SendGatewayData(void) {
 
 // [RX] Pi VCP 8바이트 → CAN 0x400 중계 (해석 없음)
 void UART_OnPacket(void) {
+    uint8_t cmd = uartRxBuffer[0];
+    uint8_t target = uartRxBuffer[1];
+
+    if (cmd == CMD_OTA_START
+        && (target == ECU_TARGET_ECU1
+            || target == ECU_TARGET_ECU2
+            || target == ECU_TARGET_ECU3)) {
+        uartOtaModeActive = 1U;
+    } else if (cmd == CMD_OTA_END
+               && (target == ECU_TARGET_ECU1
+                   || target == ECU_TARGET_ECU2
+                   || target == ECU_TARGET_ECU3)) {
+        uartOtaModeActive = 0U;
+    }
+
     CAN_TxDownlink(uartRxBuffer);
     HAL_UART_Receive_IT(&huart2, uartRxBuffer, UART_DOWNLINK_PACKET_LEN);
 }

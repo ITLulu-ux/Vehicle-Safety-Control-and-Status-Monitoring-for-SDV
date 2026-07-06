@@ -17,24 +17,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "can_comm.h"
+#include "control_data.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-// 위험도 정의 전역 열거형 (freertos.c에서도 extern으로 사용 가능)
-typedef enum {
-    RISK_SAFE = 0,
-    RISK_CAUTION,
-    RISK_WARNING,
-    RISK_DANGER
-} RiskLevel_t;
-
-typedef struct {
-    uint32_t StdId;
-    uint8_t  DLC;
-    uint8_t  Data[8];
-} CAN_Rx_Format_t;
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -96,9 +84,9 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
             rxMsg.StdId = header.StdId;
             rxMsg.DLC = header.DLC;
 
-            // 인터럽트에서는 즉시 FreeRTOS 최상위 수신큐로 휙 던지고 빠져나옵니다.
-            // 대기 시간(Timeout)은 무조건 0이어야 ISR 안에서 안전합니다.
-            osMessageQueuePut(Queue_CAN_RXHandle, &rxMsg, 0, 0);
+            if (Queue_CAN_RXHandle != NULL) {
+                osMessageQueuePut(Queue_CAN_RXHandle, &rxMsg, 0, 0);
+            }
         }
     }
 }
@@ -140,10 +128,9 @@ int main(void)
   CAN_Filter_Config();
   HAL_CAN_Start(&hcan1);
 
-  // 2. CAN FIFO0 수신 인터럽트(Notification) 활성화
-  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+  // CAN RX IRQ는 Queue_CAN_RX 생성 후 StartCANRXTask에서 활성화
 
-  // 3. 서보모터 제어용 TIM4 PWM CH1(브레이크), CH2(와이퍼) 가동 시작
+  // 서보모터 제어용 TIM4 PWM CH1(브레이크), CH2(와이퍼) 가동 시작
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
 

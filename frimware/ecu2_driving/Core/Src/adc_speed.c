@@ -8,12 +8,18 @@
 
 #include "adc_speed.h"
 #include "driving_data.h"
+#include "ota.h"
 #include "main.h"
 #include <stdio.h>
 
 extern ADC_HandleTypeDef hadc1;
 
 void Speed_Task_Run(void) {
+	if (ota_mode_active != 0U) {
+		osDelay(100);
+		return;
+	}
+
 	// 1. ADC 변환 시작
 	HAL_ADC_Start(&hadc1);
 

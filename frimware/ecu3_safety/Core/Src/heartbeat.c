@@ -8,6 +8,7 @@
 #include "heartbeat.h"
 #include "can.h"
 #include "can_comm.h"
+#include "ota.h"
 
 extern CAN_TxHeaderTypeDef TxHeader;
 extern uint8_t TxData[8];
@@ -18,6 +19,10 @@ extern uint32_t TxMailbox;
   */
 void Send_Heartbeat_Signal(void)
 {
+    if (ota_mode_active != 0U) {
+        return;
+    }
+
     TxHeader.StdId = CAN_ID_ECU3_HB;
     TxHeader.RTR = CAN_RTR_DATA;
     TxHeader.IDE = CAN_ID_STD;

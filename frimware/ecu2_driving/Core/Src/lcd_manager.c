@@ -9,6 +9,7 @@
 #include "lcd_manager.h"
 #include "driving_data.h"
 #include "i2c_lcd.h"
+#include "ota.h"
 #include "main.h"
 #include <stdio.h>
 
@@ -19,6 +20,11 @@ void LCD_Task_Run(void) {
     char lcd_buf[32];
     uint8_t speed;
     uint16_t distance;
+
+    if (ota_mode_active != 0U) {
+        osDelay(100);
+        return;
+    }
 
     osMutexWait(drivingMutexHandle, osWaitForever);
     speed = drivingData.speed;

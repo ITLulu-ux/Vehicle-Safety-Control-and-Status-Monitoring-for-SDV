@@ -14,6 +14,4 @@ void CAN_RX_Task_Run(void);
 void Heartbeat_Task_Run(void);
 HAL_StatusTypeDef CAN_SendSensorData(SensorData_t *data);
 
-extern volatile uint8_t ota_mode_active;
-
 #endif

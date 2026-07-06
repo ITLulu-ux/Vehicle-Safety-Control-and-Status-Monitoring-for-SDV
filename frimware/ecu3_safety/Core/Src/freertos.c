@@ -334,9 +334,7 @@ void StartCANRXTask(void *argument)
 		                      break;
 
 		                  case CAN_ID_GATEWAY_CMD:
-		                      if (rxMsg.Data[0] == 0x01) HAL_NVIC_SystemReset(); // UDS 강제 리셋 명령
-		                      else if (rxMsg.Data[0] == 0x02 && rxMsg.Data[1] == 0x03) ota_mode_active = 1;
-		                      else if (rxMsg.Data[0] == 0x04) ota_mode_active = 0;
+		                      CAN_HandleDownlink(rxMsg.Data);
 		                      break;
 		              }
 	    }
@@ -357,7 +355,9 @@ void StartLEDTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	Control_LED_Alert();
+    if (ota_mode_active == 0U) {
+      Control_LED_Alert();
+    }
     osDelay(1);
   }
   /* USER CODE END StartLEDTask */
@@ -376,7 +376,9 @@ void StartCANTXTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	CAN_Send_Status();
+    if (ota_mode_active == 0U) {
+      CAN_Send_Status();
+    }
     osDelay(1000);
   }
   /* USER CODE END StartCANTXTask */
@@ -395,7 +397,9 @@ void StartHeartbeatTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	Send_Heartbeat_Signal();
+    if (ota_mode_active == 0U) {
+      Send_Heartbeat_Signal();
+    }
     osDelay(1000);
   }
   /* USER CODE END StartHeartbeatTask */
@@ -414,7 +418,9 @@ void StartRiskTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	Process_Risk_Analysis();
+    if (ota_mode_active == 0U) {
+      Process_Risk_Analysis();
+    }
     osDelay(20);
   }
   /* USER CODE END StartRiskTask */
@@ -433,7 +439,9 @@ void StartBrakeTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	Control_Brake();
+    if (ota_mode_active == 0U) {
+      Control_Brake();
+    }
     osDelay(20);
   }
   /* USER CODE END StartBrakeTask */
@@ -452,7 +460,9 @@ void StartWiperTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	Control_Wiper();
+    if (ota_mode_active == 0U) {
+      Control_Wiper();
+    }
     osDelay(1);
   }
   /* USER CODE END StartWiperTask */

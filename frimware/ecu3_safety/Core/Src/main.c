@@ -65,8 +65,6 @@ uint32_t TxMailbox;
 
 // [OTA 업데이트용 상태 변수]
 volatile uint8_t ota_mode_active = 0;
-uint32_t ota_file_size = 0;
-uint32_t ota_received_bytes = 0;
 
 volatile uint8_t current_humidity = 0; // ECU1에게 받을 습도 데이터 저장용
 volatile uint16_t current_lux = 0;     // 조도 데이터 저장용

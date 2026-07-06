@@ -9,9 +9,9 @@
 #define INC_CAN_MANAGER_H_
 
 #include <stdint.h>
+#include "downlink.h"
 
-#define CAN_ID_CMD_DOWNLINK  0x400U
-#define ECU2_TARGET_ID       0x02U
+#define CAN_ID_CMD_DOWNLINK  CAN_ID_DOWNLINK
 
 void CAN_RX_Task_Run(void);
 void CAN_TX_Task_Run(void);

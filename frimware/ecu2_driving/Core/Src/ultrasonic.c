@@ -8,9 +8,15 @@
 
 #include "ultrasonic.h"
 #include "driving_data.h"
+#include "ota.h"
 #include "main.h"
 
 void Distance_Task_Run(void) {
+	if (ota_mode_active != 0U) {
+		osDelay(100);
+		return;
+	}
+
 	// 1. 초음파 센서 Trigger 핀에 High 펄스 인가
 	HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_SET);
 

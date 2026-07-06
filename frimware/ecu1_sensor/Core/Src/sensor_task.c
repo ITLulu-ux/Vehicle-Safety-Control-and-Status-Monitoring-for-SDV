@@ -1,9 +1,11 @@
 #include "sensor_task.h"
 #include "sensor_data.h"
+#include "can_comm.h"
 #include "dht11.h"
 #include "bh1750.h"
 #include "tim.h"
 #include "i2c.h"
+#include "cmsis_os.h"
 
 void SensorTask(void const *argument)
 {
@@ -19,8 +21,13 @@ void SensorTask(void const *argument)
 
     osDelay(2000);
 
-    for(;;)
+    for (;;)
     {
+        if (ota_mode_active != 0U) {
+            osDelay(100);
+            continue;
+        }
+
 //    	if(DHT11_Read(&hdht11))
 //    	{
 //    	    sensorData.temperature = hdht11.temperature;

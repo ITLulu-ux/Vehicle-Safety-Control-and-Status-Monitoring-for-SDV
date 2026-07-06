@@ -53,7 +53,7 @@ SemaphoreHandle_t gatewayDataMutex = NULL;
 
 extern CAN_HandleTypeDef hcan1;
 extern UART_HandleTypeDef huart2;
-extern uint8_t uartRxBuffer[32];
+extern uint8_t uartRxBuffer[UART_DOWNLINK_PACKET_LEN];
 
 /* USER CODE END Variables */
 osThreadId Task_CAN_ProcesHandle;
@@ -132,7 +132,7 @@ void MX_FREERTOS_Init(void) {
   Task_CAN_ProcesHandle = osThreadCreate(osThread(Task_CAN_Proces), NULL);
 
   /* definition and creation of Task_UART_Proce */
-  osThreadDef(Task_UART_Proce, Start_Task_UART, osPriorityNormal, 0, 128);
+  osThreadDef(Task_UART_Proce, Start_Task_UART, osPriorityNormal, 0, 256);
   Task_UART_ProceHandle = osThreadCreate(osThread(Task_UART_Proce), NULL);
 
   /* definition and creation of Task_Heartbeat */
@@ -180,13 +180,13 @@ void Start_Task_UART(void const * argument)
 {
   /* USER CODE BEGIN Start_Task_UART */
     // ⭐️ [추가] 라즈베리파이 수신 초인종도 이 타이밍에 켭니다.
-    HAL_UART_Receive_IT(&huart2, uartRxBuffer, sizeof(uartRxBuffer));
+    HAL_UART_Receive_IT(&huart2, uartRxBuffer, UART_DOWNLINK_PACKET_LEN);
 
     for(;;)
     {
-        // 100ms마다 라즈베리파이로 데이터 전송, 그 사이에 명령이 오면 수신 파싱
-        if(osSemaphoreWait(Sem_UART_RxHandle, 100) == osOK) {
-            UART_ProcessRxMessage();
+        // 2s마다 업링크 JSON, 그 사이 Pi OTA/제어 8바이트 수신 시 CAN 0x400 중계
+        if(osSemaphoreWait(Sem_UART_RxHandle, 2000) == osOK) {
+            UART_OnPacket();
         } else {
             UART_SendGatewayData();
         }

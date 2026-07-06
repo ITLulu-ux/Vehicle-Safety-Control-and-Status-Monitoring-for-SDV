@@ -4,14 +4,20 @@
 
 #include "FreeRTOS.h"
 #include "queue.h"
+#include "cmsis_os.h"
 
 void CanTxTask(void const *argument)
 {
     SensorData_t sensorData;
 
-    for(;;)
+    for (;;)
     {
-        if(xQueueReceive(sensorQueue,
+        if (ota_mode_active != 0U) {
+            osDelay(100);
+            continue;
+        }
+
+        if (xQueueReceive(sensorQueue,
                          &sensorData,
                          portMAX_DELAY) == pdPASS)
         {

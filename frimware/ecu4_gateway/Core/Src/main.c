@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include "can_comm.h"
 #include "gateway_data.h"
+#include "uart_comm.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,7 +50,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-extern uint8_t uartRxBuffer[ 32 ];
+extern uint8_t uartRxBuffer[UART_DOWNLINK_PACKET_LEN];
 extern osSemaphoreId Sem_UART_RxHandle;
 
 // 구조체 변수를 메모리에 할당(생성)합니다!
@@ -66,7 +67,7 @@ void MX_FREERTOS_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 int __io_putchar(int ch) {
-    HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 100);
+    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 100);
     return ch;
 }
 /* USER CODE END 0 */

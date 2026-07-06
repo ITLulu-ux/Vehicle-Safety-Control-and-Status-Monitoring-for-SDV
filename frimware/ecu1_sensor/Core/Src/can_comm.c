@@ -1,6 +1,6 @@
 
-
 #include "can_comm.h"
+#include "ota.h"
 #include "can.h"
 #include "cmsis_os.h"
 
@@ -11,19 +11,22 @@ extern CAN_HandleTypeDef hcan1;
 
 static void CAN_HandleDownlink(const uint8_t *rxData)
 {
-    if (rxData[1] != ECU1_TARGET_ID) {
+    if (rxData[1] != MY_ECU_ID) {
         return;
     }
 
     switch (rxData[0]) {
-        case 0x01:
+        case CMD_RESET:
             HAL_NVIC_SystemReset();
             break;
-        case 0x02:
-            ota_mode_active = 1;
+        case CMD_OTA_START:
+            OTA_Start(rxData);
             break;
-        case 0x04:
-            ota_mode_active = 0;
+        case CMD_OTA_DATA:
+            OTA_WriteChunk(rxData);
+            break;
+        case CMD_OTA_END:
+            OTA_End(rxData);
             break;
         default:
             break;
@@ -79,6 +82,11 @@ void Heartbeat_Task_Run(void)
     CAN_TxHeaderTypeDef hbHeader = {0};
     uint8_t hbData[1] = {0x01};
     uint32_t txMailbox;
+
+    if (ota_mode_active != 0U) {
+        osDelay(2000);
+        return;
+    }
 
     hbHeader.StdId = CAN_ID_HB_ECU1;
     hbHeader.IDE = CAN_ID_STD;

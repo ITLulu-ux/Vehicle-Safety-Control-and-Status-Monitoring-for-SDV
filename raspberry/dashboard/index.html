@@ -1,0 +1,68 @@
+<body>
+
+<div class="container">
+
+    <header>
+        <h2>UDS Diagnostic Dashboard</h2>
+    </header>
+
+    <section class="search-area">
+
+        <select id="ecuFilter">
+            <option value="">All ECU</option>
+            <option>ECU1</option>
+            <option>ECU2</option>
+            <option>ECU3</option>
+            <option>ECU4</option>
+        </select>
+
+        <select id="otaFilter">
+            <option value="">All OTA</option>
+            <option>ACTIVE</option>
+            <option>UPDATING</option>
+            <option>COMPLETE</option>
+            <option>FAIL</option>
+        </select>
+
+        <input
+            type="text"
+            id="keyword"
+            placeholder="Search..."
+        >
+
+        <button id="searchBtn">
+            Search
+        </button>
+
+    </section>
+
+    <section class="result-area">
+
+        <table>
+
+            <thead>
+
+            <tr>
+                <th>Date</th>
+                <th>ECU</th>
+                <th>Status</th>
+                <th>Message</th>
+            </tr>
+
+            </thead>
+
+            <tbody id="dashboardTable">
+
+            </tbody>
+
+        </table>
+
+    </section>
+
+</div>
+
+<link rel="stylesheet" href="css/style.css">
+<script src="js/websocket.js"></script>
+<script src="js/dashboard.js"></script>
+
+</body>

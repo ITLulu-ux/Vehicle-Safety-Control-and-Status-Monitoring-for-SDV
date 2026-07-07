@@ -23,35 +23,6 @@ router.get('/vehicle', (req, res) => {
 });
 
 /**
- * GET /api/heartbeat
- * ECU Heartbeat 조회
- */
-router.get('/heartbeat', async (req, res) => {
-
-    try {
-
-        const rows = await dtcService.getHeartbeat();
-
-        res.json(rows);
-
-    }
-    catch (err) {
-
-        console.error("[API HEARTBEAT ERROR]", err);
-
-        res.status(500).json({
-
-            status: "fail",
-
-            message: "Failed to load heartbeat"
-
-        });
-
-    }
-
-});
-
-/**
  * GET /api/dtc
  * DTC 목록 조회
  */

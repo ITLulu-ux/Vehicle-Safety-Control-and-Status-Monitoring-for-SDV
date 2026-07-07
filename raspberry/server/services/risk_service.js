@@ -29,10 +29,6 @@ function updateVehicleState(packet) {
     vehicleState.ecu3.status =
         packet.hb3 ? "ACTIVE" : "DISCONNECTED";
 
-    vehicleState.ecu4.alive = packet.hb4 === 1;
-    vehicleState.ecu4.status =
-        packet.hb4 ? "ACTIVE" : "DISCONNECTED";
-
     if (packet.riskLevel !== undefined)
         vehicleState.ecu3.riskLevel = packet.riskLevel;
 

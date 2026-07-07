@@ -29,9 +29,6 @@ async function parseEcu4JsonLine(line) {
         if (packet.hb3)
             await dtcService.updateHeartbeat(3);
 
-        if (packet.hb4)
-            await dtcService.updateHeartbeat(4);
-
     }
     catch (err) {
 

@@ -124,5 +124,7 @@ void CAN_SendHeartbeat(void) {
 
     if (HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox) != HAL_OK) {
         printf("[CAN TX ERROR] 0x704 heartbeat failed\r\n");
+    } else {
+        Heartbeat_OnEcuReceived(4);
     }
 }

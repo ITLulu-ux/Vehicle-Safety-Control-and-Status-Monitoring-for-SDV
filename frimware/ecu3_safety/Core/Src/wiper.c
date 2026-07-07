@@ -28,7 +28,7 @@ void Control_Wiper(void)
 
     // PWM Pulse 제어 (TIM4 Channel 2)
     if (temperature > 28 || humidity > 80 || current_risk == RISK_DANGER) {
-        __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, 1800); // 고속 와이핑
+        __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, 1800);// 고속 와이핑
         controlData.wiperState = 1;
     } else {
         __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, 1500); // 정지

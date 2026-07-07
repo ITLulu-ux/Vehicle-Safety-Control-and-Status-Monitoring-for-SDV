@@ -12,10 +12,10 @@ static volatile uint8_t uartOtaModeActive = 0U;
 
 // [TX] 라즈베리파이로 통합 데이터 송신 (JSON, Pi DB 연동용)
 void UART_SendGatewayData(void) {
-    static char json[220];
+    static char json[240];
     SensorData_t sensor;
     DrivingData_t driving;
-    uint8_t hb1, hb2, hb3;
+    uint8_t hb1, hb2, hb3, hb4;
 
     if (uartOtaModeActive != 0U) {
         return;
@@ -30,6 +30,7 @@ void UART_SendGatewayData(void) {
     hb1     = gatewayData.heartbeat1;
     hb2     = gatewayData.heartbeat2;
     hb3     = gatewayData.heartbeat3;
+    hb4     = gatewayData.heartbeat4;
 
     xSemaphoreGive(gatewayDataMutex);
 
@@ -37,7 +38,7 @@ void UART_SendGatewayData(void) {
         "{\"type\":\"sensor\",\"can_id\":0,"
         "\"temperature\":%d,\"humidity\":%d,\"lux\":%u,"
         "\"speed\":%u,\"distance\":%u,"
-        "\"hb1\":%u,\"hb2\":%u,\"hb3\":%u}\r\n",
+        "\"hb1\":%u,\"hb2\":%u,\"hb3\":%u,\"hb4\":%u}\r\n",
         (int)sensor.temp,
         (int)sensor.humi,
         (unsigned int)sensor.lux,
@@ -45,7 +46,8 @@ void UART_SendGatewayData(void) {
         (unsigned int)driving.distance,
         (unsigned int)hb1,
         (unsigned int)hb2,
-        (unsigned int)hb3);
+        (unsigned int)hb3,
+        (unsigned int)hb4);
 
     HAL_UART_Transmit(&huart2, (uint8_t *)json, (uint16_t)strlen(json), 200);
 }

@@ -32,10 +32,11 @@ typedef struct {
     DrivingData_t drivingData;
     ControlData_t controlData;
     
-    // 타 ECU 생존 상태(Heartbeat) 확인용 플래그
+    // ECU 생존 상태(Heartbeat) 확인용 플래그
     uint8_t heartbeat1;
     uint8_t heartbeat2;
     uint8_t heartbeat3;
+    uint8_t heartbeat4;
 } GatewayData_t;
 
 // 전역 변수 외부 참조 선언 (메모리 할당은 freertos.c에서 수행)

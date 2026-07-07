@@ -3,25 +3,34 @@ const dtcService = require('./dtc_service');
 
 async function getUDSStatus() {
 
+    /* Heartbeat 조회 */
+
     const [heartbeat] = await db.execute(
 
         `SELECT
-            ecu_name,
+            ecu_id,
             status,
             last_received
-         FROM heartbeat_log`
+         FROM heartbeat_log
+         ORDER BY ecu_id`
 
     );
 
+    /* DTC 조회 */
+
     const dtc = await dtcService.getAllDTC();
+
+    /* Raspberry Pi Console */
 
     console.log("========== UDS ==========");
 
-    heartbeat.forEach(item=>{
+    console.log("Heartbeat");
+
+    heartbeat.forEach(item => {
 
         console.log(
 
-            `${item.ecu_name} : ${item.status}`
+            `ECU${item.ecu_id} : ${item.status}`
 
         );
 
@@ -31,21 +40,28 @@ async function getUDSStatus() {
 
     console.log("DTC");
 
-    dtc.forEach(item=>{
+    if (dtc.length === 0) {
 
-        console.log(
+        console.log("No DTC");
 
-            item.dtc_code,
+    }
+    else {
 
-            item.description
+        dtc.forEach(item => {
 
-        );
+            console.log(
 
-    });
+                `[ECU${item.ecu_id}] ${item.dtc_code} - ${item.description} (${item.status})`
+
+            );
+
+        });
+
+    }
 
     console.log("=========================");
 
-    return{
+    return {
 
         heartbeat,
 
@@ -55,7 +71,7 @@ async function getUDSStatus() {
 
 }
 
-module.exports={
+module.exports = {
 
     getUDSStatus
 

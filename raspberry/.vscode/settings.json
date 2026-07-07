@@ -1,0 +1,19 @@
+{
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "192.168.0.6",
+            "port": 3306,
+            "driver": "MySQL",
+            "name": "RAS_SQL",
+            "database": "raspberry_server",
+            "username": "lulu_user",
+            "askForPassword": true
+        }
+    ]
+}

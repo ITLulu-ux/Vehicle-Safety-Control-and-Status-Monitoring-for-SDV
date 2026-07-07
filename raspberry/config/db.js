@@ -1,7 +1,7 @@
 const mysql = require('mysql2/promise');
 
 const pool = mysql.createPool({
-    host: '172.30.1.12',
+    host: process.env.DB_HOST || "192.168.0.6",
     port: 3306,
     user: 'lulu_user',              // 또는 네가 만든 계정
     password: 'password123!',

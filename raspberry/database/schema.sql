@@ -21,3 +21,15 @@ CREATE TABLE heartbeat_log (
 
     INDEX idx_ecu_name (ecu_name)
 );
+
+CREATE TABLE sensor_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    timestamp DATETIME NOT NULL
+    DEFAULT CURRENT_TIMESTAMP,
+    can_id INT NOT NULL DEFAULT 0,
+    temperature INT NOT NULL,
+    humidity INT NOT NULL,
+    lux INT UNSIGNED NOT NULL,
+    speed INT UNSIGNED NOT NULL,
+    distance INT UNSIGNED NOT NULL
+);

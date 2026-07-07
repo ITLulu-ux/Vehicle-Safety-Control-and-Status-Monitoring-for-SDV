@@ -1,108 +1,62 @@
 const vehicleState = require('../gateway/vehicle_state');
 
-/**
- * ECU3 상태 갱신
- */
-function updateECU3State(stdId, dataBytes) {
-
-    const now = new Date();
-
-    vehicleState.timestamp = now;
-
-    vehicleState.ecu3.lastHeartbeat = now;
-    vehicleState.ecu3.alive = true;
-    vehicleState.ecu3.status = "ACTIVE";
-
-    switch (stdId) {
-
-        case 0x300:
-
-            vehicleState.ecu3.riskLevel  = dataBytes[0];
-            vehicleState.ecu3.brakeLevel = dataBytes[1];
-            vehicleState.ecu3.wiperState = dataBytes[2];
-            vehicleState.ecu3.ledState   = dataBytes[3];
-
-            console.log(
-                `[ECU3] Risk=${vehicleState.ecu3.riskLevel}`
-            );
-
-            break;
-
-        case 0x703:
-
-            // Heartbeat만 갱신
-            break;
-
-    }
-
-}
-
-/**
- * ECU1 / ECU2 센서 데이터 갱신
- */
-function updateExternalSensor(stdId, dataBytes) {
+function updateVehicleState(packet) {
 
     vehicleState.timestamp = new Date();
 
-    switch (stdId) {
+    /* ECU1 */
 
-        // ECU1
-        case 0x100:
+    vehicleState.ecu1.alive = packet.hb1 === 1;
+    vehicleState.ecu1.status =
+        packet.hb1 ? "ACTIVE" : "DISCONNECTED";
 
-            vehicleState.ecu1.alive = true;
-            vehicleState.ecu1.status = "ACTIVE";
+    vehicleState.ecu1.temperature = packet.temperature;
+    vehicleState.ecu1.humidity = packet.humidity;
+    vehicleState.ecu1.lux = packet.lux;
 
-            vehicleState.ecu1.temperature = dataBytes[0];
-            vehicleState.ecu1.humidity    = dataBytes[1];
-            vehicleState.ecu1.lux =
-                (dataBytes[2] << 8) | dataBytes[3];
+    /* ECU2 */
 
-            break;
+    vehicleState.ecu2.alive = packet.hb2 === 1;
+    vehicleState.ecu2.status =
+        packet.hb2 ? "ACTIVE" : "DISCONNECTED";
 
-        // ECU2
-        case 0x200:
+    vehicleState.ecu2.speed = packet.speed;
+    vehicleState.ecu2.distance = packet.distance;
 
-            vehicleState.ecu2.alive = true;
-            vehicleState.ecu2.status = "ACTIVE";
+    /* ECU3 */
 
-            vehicleState.ecu2.speed    = dataBytes[0];
-            vehicleState.ecu2.distance = dataBytes[1];
+    vehicleState.ecu3.alive = packet.hb3 === 1;
+    vehicleState.ecu3.status =
+        packet.hb3 ? "ACTIVE" : "DISCONNECTED";
 
-            break;
+    vehicleState.ecu4.alive = packet.hb4 === 1;
+    vehicleState.ecu4.status =
+        packet.hb4 ? "ACTIVE" : "DISCONNECTED";
 
-    }
+    if (packet.riskLevel !== undefined)
+        vehicleState.ecu3.riskLevel = packet.riskLevel;
+
+    if (packet.brakeLevel !== undefined)
+        vehicleState.ecu3.brakeLevel = packet.brakeLevel;
+
+    if (packet.wiperState !== undefined)
+        vehicleState.ecu3.wiperState = packet.wiperState;
+
+    if (packet.ledState !== undefined)
+        vehicleState.ecu3.ledState = packet.ledState;
 
 }
 
-/**
- * ECU3 Heartbeat 감시
- */
-setInterval(() => {
+function getVehicleState() {
 
-    if (!vehicleState.ecu3.lastHeartbeat)
-        return;
+    return vehicleState;
 
-    const diff =
-        Date.now() -
-        vehicleState.ecu3.lastHeartbeat.getTime();
-
-    if (diff > 3000) {
-
-        vehicleState.ecu3.alive = false;
-        vehicleState.ecu3.status = "DISCONNECTED";
-
-        console.warn("[ALERT] ECU3 Communication Timeout");
-
-    }
-
-}, 2000);
+}
 
 module.exports = {
 
-    getVehicleState: () => vehicleState,
+    updateVehicleState,
 
-    updateECU3State,
-
-    updateExternalSensor
+    getVehicleState
 
 };

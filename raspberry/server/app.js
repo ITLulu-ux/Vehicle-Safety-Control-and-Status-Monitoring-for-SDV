@@ -1,11 +1,11 @@
 const express = require('express');
 const http = require('http');
-const net = require('net');
 const WebSocket = require('ws');
 const path = require('path');
 
 const apiRouter = require('./routes/api');
-const { parseIncomingWirelessPacket } = require('./gateway/json_parser');
+const { startUartReceiver } = require('./gateway/uart_receiver');
+const vehicleState = require('./gateway/vehicle_state');
 
 const app = express();
 
@@ -15,11 +15,11 @@ app.use(express.json());
 
 app.use('/api', apiRouter);
 
-/* dashboard 폴더가 있다면 */
+/* Dashboard */
 app.use(express.static(path.join(__dirname, '../dashboard')));
 
-/* --- uds_dashboard 폴더가 있다면 --- */
-app.use("/uds", express.static(path.join(__dirname,"../uds_dashboard")));
+/* UDS Dashboard */
+app.use('/uds', express.static(path.join(__dirname, '../uds_dashboard')));
 
 /* ---------------- HTTP Server ---------------- */
 
@@ -33,6 +33,9 @@ wss.on('connection', (ws) => {
 
     console.log("[WS] Dashboard Connected");
 
+    /* 접속 즉시 현재 상태 전송 */
+    ws.send(JSON.stringify(vehicleState));
+
     ws.on('close', () => {
 
         console.log("[WS] Dashboard Disconnected");
@@ -41,33 +44,40 @@ wss.on('connection', (ws) => {
 
 });
 
-/* ---------------- TCP ---------------- */
+/* ---------------- Dashboard Broadcast ---------------- */
 
-const tcpServer = net.createServer((socket)=>{
+/*
+    vehicleState를 1초마다
+    Dashboard로 전송
+*/
+setInterval(() => {
 
-    console.log("[TCP] ECU4 Gateway Connected");
+    const json = JSON.stringify(vehicleState);
 
-    socket.on('data',(buffer)=>{
+    wss.clients.forEach(client => {
 
-        console.log("[TCP] Packet Received");
-        console.log(buffer);
+        if (client.readyState === WebSocket.OPEN) {
 
-        parseIncomingWirelessPacket(buffer);
+            client.send(json);
+
+        }
 
     });
 
-});
+}, 1000);
 
 /* ---------------- Start ---------------- */
 
-server.listen(3000,()=>{
+server.listen(3000, () => {
 
-    console.log("HTTP Server : 3000");
+    console.log("=================================");
+    console.log(" Raspberry Pi Server Started");
+    console.log(" HTTP      : 3000");
+    console.log(" WebSocket : 3000");
+    console.log(" UART       Ready");
+    console.log("=================================");
 
-});
-
-tcpServer.listen(5000,()=>{
-
-    console.log("TCP Server : 5000");
+    /* ECU4 UART 시작 */
+    startUartReceiver();
 
 });

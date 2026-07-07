@@ -1,68 +1,283 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
 <body>
 
-<div class="container">
+<div class="dashboard-grid">
 
-    <header>
-        <h2>UDS Diagnostic Dashboard</h2>
-    </header>
+    <!-- 1. Vehicle Dashboard -->
+    <div class="panel">
+        <div class="panel-header header-col1">
+            <img class="dash-icon" src="icon/icon-car.png" alt=""> 1. Vehicle Dashboard
+        </div>
+        <div class="panel-content">
 
-    <section class="search-area">
+            <div>
+                <div class="section-title">현재 차량 상태</div>
+                <div class="flex-row vehicle-status-row">
+                    <img class="dash-icon dash-icon-large" id="vehicleStatusIcon" src="icon/icon-check-circle_O.png" alt="">
+                    <div>
+                        <div class="text-lg" id="vehicleStatus">-</div>
+                        <div class="text-sm" id="vehicleStatusDesc">데이터 수신 대기 중...</div>
+                    </div>
+                </div>
 
-        <select id="ecuFilter">
-            <option value="">All ECU</option>
-            <option>ECU1</option>
-            <option>ECU2</option>
-            <option>ECU3</option>
-            <option>ECU4</option>
-        </select>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="text-sm">위험도</span>
+                        <img class="dash-icon" id="riskShieldIcon" src="icon/icon-shield_O.png" alt="">
+                        <span id="risk">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="text-sm">브레이크</span>
+                        <img class="dash-icon" src="icon/icon-brake.png" alt="">
+                        <span class="text-blue" id="brake">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="text-sm">와이퍼</span>
+                        <img class="dash-icon" src="icon/icon-wiper.png" alt="">
+                        <span class="text-blue" id="wiper">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="text-sm">LED 상태</span>
+                        <img class="dash-icon" src="icon/icon-light.png" alt="">
+                        <span id="led">-</span>
+                    </div>
+                </div>
+            </div>
 
-        <select id="otaFilter">
-            <option value="">All OTA</option>
-            <option>ACTIVE</option>
-            <option>UPDATING</option>
-            <option>COMPLETE</option>
-            <option>FAIL</option>
-        </select>
+            <div class="info-grid">
+                <div class="card flex-col">
+                    <div class="section-title" style="margin-bottom: 0;">환경 정보 (ECU1)</div>
+                    <div class="info-row">
+                        <span><img class="dash-icon dash-icon-inline" src="icon/icon-thermometer.png" alt=""> 온도</span>
+                        <span class="text-blue" id="temperature">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span><img class="dash-icon dash-icon-inline" src="icon/icon-water-drop.png" alt=""> 습도</span>
+                        <span class="text-blue" id="humidity">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span><img class="dash-icon dash-icon-inline" src="icon/icon-sun.png" alt=""> 조도</span>
+                        <span class="text-blue" id="lux">-</span>
+                    </div>
+                </div>
+                <div class="card flex-col">
+                    <div class="section-title" style="margin-bottom: 0;">주행 정보 (ECU2)</div>
+                    <div class="info-row">
+                        <span><img class="dash-icon dash-icon-inline" src="icon/icon-speedometer.png" alt=""> 속도</span>
+                        <span class="text-yellow" id="speed">-</span>
+                    </div>
+                    <div class="info-row" style="margin-top: 10px;">
+                        <span><img class="dash-icon dash-icon-inline" src="icon/icon-road.png" alt=""> 전방 거리</span>
+                        <span class="text-yellow" id="distance">-</span>
+                    </div>
+                </div>
+            </div>
 
-        <input
-            type="text"
-            id="keyword"
-            placeholder="Search..."
-        >
+            <div>
+                <div class="section-title purple">최근 CAN 로그</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>시간</th>
+                            <th>CAN ID</th>
+                            <th>송신 ECU</th>
+                            <th>데이터</th>
+                        </tr>
+                    </thead>
+                    <tbody id="canLogTable">
+                        <tr>
+                            <td colspan="4" class="text-sm">CAN 데이터 수신 대기 중...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-        <button id="searchBtn">
-            Search
-        </button>
+    <!-- 2. UDS Dashboard -->
+    <div class="panel">
+        <div class="panel-header header-col2">
+            <img class="dash-icon" src="icon/icon-stethoscope.png" alt=""> 2. UDS Dashboard
+        </div>
+        <div class="panel-content">
 
-    </section>
+            <div>
+                <div class="section-title">DTC 현황</div>
+                <div class="card flex-center flex-col">
+                    <img class="dash-icon dash-icon-large" id="dtcStatusIcon" src="icon/icon-check-circle.png" alt="">
+                    <div class="text-sm" id="dtcSummary">현재 DTC가 없습니다.</div>
+                    <div class="text-sm" id="dtcSummaryEn">No DTC</div>
+                </div>
+            </div>
 
-    <section class="result-area">
+            <div>
+                <div class="section-title">DTC 목록</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>코드</th>
+                            <th>설명</th>
+                            <th>발생 시간</th>
+                            <th>상태</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dtcTable"></tbody>
+                </table>
+                <div class="flex-center text-sm empty-state" id="dtcEmpty">저장된 DTC가 없습니다.</div>
+                <button class="btn btn-outline-green" id="btnClearAll" style="margin-top: 8px;">DTC 전체 삭제</button>
+            </div>
 
-        <table>
+            <div>
+                <div class="section-title">ECU 제어</div>
+                <div class="info-grid">
+                    <button class="btn btn-outline-blue flex-col" id="btnOta">
+                        <img class="dash-icon dash-icon-btn" src="icon/icon-sync.png" alt="">
+                        OTA 업데이트<br>
+                        <span class="text-sm" style="color:var(--color-blue)">ECU 선택</span>
+                    </button>
+                    <button class="btn btn-outline-green flex-col" id="btnClear">
+                        <img class="dash-icon dash-icon-btn" src="icon/icon-trash.png" alt="">
+                        DTC Clear<br>
+                        <span class="text-sm" style="color:var(--color-green)">모든 DTC를 삭제합니다.</span>
+                    </button>
+                </div>
+            </div>
 
-            <thead>
+            <div>
+                <div class="section-title">ECU 정보</div>
+                <table>
+                    <thead>
+                        <tr><th>ECU</th><th>모델</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>ECU1 (Environment)</td><td>STM32F446RE</td></tr>
+                        <tr><td>ECU2 (Driving)</td><td>STM32F446RE</td></tr>
+                        <tr><td>ECU3 (Safety Control)</td><td>STM32F446RE</td></tr>
+                        <tr><td>ECU4 (Gateway)</td><td>STM32F446RE</td></tr>
+                    </tbody>
+                </table>
+            </div>
 
-            <tr>
-                <th>Date</th>
-                <th>ECU</th>
-                <th>Status</th>
-                <th>Message</th>
-            </tr>
+            <div>
+                <div class="section-title">UDS 통신 로그</div>
+                <table>
+                    <thead>
+                        <tr><th>시간</th><th>방향</th><th>서비스</th><th>데이터</th></tr>
+                    </thead>
+                    <tbody id="udsLog">
+                        <tr>
+                            <td colspan="4" class="text-sm">UDS 통신 로그가 없습니다.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-            </thead>
+    <!-- 3. Heartbeat Dashboard -->
+    <div class="panel">
+        <div class="panel-header header-col3">
+            <img class="dash-icon" src="icon/icon-heartbeat.png" alt=""> 3. Heartbeat (ECU 상태)
+        </div>
+        <div class="panel-content">
 
-            <tbody id="dashboardTable">
+            <div>
+                <div class="section-title">ECU 연결 상태</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ECU</th>
+                            <th>상태</th>
+                            <th>마지막 수신 시간</th>
+                            <th>패킷 손실률</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ecuConnectionTable">
+                        <tr><td>ECU1 (Environment)</td><td colspan="3" class="text-sm">로딩 중...</td></tr>
+                        <tr><td>ECU2 (Driving)</td><td colspan="3" class="text-sm">로딩 중...</td></tr>
+                        <tr><td>ECU3 (Safety Control)</td><td colspan="3" class="text-sm">로딩 중...</td></tr>
+                        <tr><td>ECU4 (Gateway)</td><td colspan="3" class="text-sm">로딩 중...</td></tr>
+                    </tbody>
+                </table>
+            </div>
 
-            </tbody>
+            <div>
+                <div class="flex-row">
+                    <div class="section-title" style="margin-bottom: 0;">Heartbeat 주기</div>
+                    <div class="text-sm">(단위: ms)</div>
+                </div>
 
-        </table>
+                <div class="flex-col" style="gap: 12px; margin-top: 10px;">
+                    <div class="flex-row heartbeat-row" data-ecu="1">
+                        <span class="heartbeat-label">ECU1 (Environment)</span>
+                        <div class="progress-bar-container heartbeat-bar-wrap">
+                            <div class="progress-bar" id="hbBar1" style="width: 0%;"></div>
+                        </div>
+                        <span class="heartbeat-ms" id="hbMs1">-</span>
+                    </div>
+                    <div class="flex-row heartbeat-row" data-ecu="2">
+                        <span class="heartbeat-label">ECU2 (Driving)</span>
+                        <div class="progress-bar-container heartbeat-bar-wrap">
+                            <div class="progress-bar" id="hbBar2" style="width: 0%;"></div>
+                        </div>
+                        <span class="heartbeat-ms" id="hbMs2">-</span>
+                    </div>
+                    <div class="flex-row heartbeat-row" data-ecu="3">
+                        <span class="heartbeat-label">ECU3 (Safety Control)</span>
+                        <div class="progress-bar-container heartbeat-bar-wrap">
+                            <div class="progress-bar" id="hbBar3" style="width: 0%;"></div>
+                        </div>
+                        <span class="heartbeat-ms" id="hbMs3">-</span>
+                    </div>
+                    <div class="flex-row heartbeat-row" data-ecu="4">
+                        <span class="heartbeat-label">ECU4 (Gateway)</span>
+                        <div class="progress-bar-container heartbeat-bar-wrap">
+                            <div class="progress-bar" id="hbBar4" style="width: 0%;"></div>
+                        </div>
+                        <span class="heartbeat-ms" id="hbMs4">-</span>
+                    </div>
+                    <div class="flex-row text-sm heartbeat-scale">
+                        <span>0</span>
+                        <span>250</span>
+                        <span>500</span>
+                        <span>750</span>
+                        <span>1000</span>
+                        <span>1250</span>
+                    </div>
+                </div>
+            </div>
 
-    </section>
+            <div>
+                <div class="section-title">최근 Heartbeat 로그</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>시간</th>
+                            <th>ECU</th>
+                            <th>상태</th>
+                        </tr>
+                    </thead>
+                    <tbody id="heartbeatTable">
+                        <tr>
+                            <td colspan="3" class="text-sm">Heartbeat 로그가 없습니다.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
 </div>
 
-<link rel="stylesheet" href="css/style.css">
-<script src="js/websocket.js"></script>
 <script src="js/dashboard.js"></script>
+<script src="js/websocket.js"></script>
 
 </body>
+</html>

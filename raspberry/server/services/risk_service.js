@@ -41,6 +41,14 @@ function updateVehicleState(packet) {
     if (packet.ledState !== undefined)
         vehicleState.ecu3.ledState = packet.ledState;
 
+
+    /* ECU4 */
+    vehicleState.ecu4.alive =
+        packet.hb4 === 1;
+
+    vehicleState.ecu4.status =
+        packet.hb4 ? "ACTIVE" : "DISCONNECTED";
+
 }
 
 function getVehicleState() {

@@ -2,6 +2,7 @@ const db = require('../../config/db');
 
 async function saveSensorLog(packet) {
 
+    console.log("[SAVE]", packet);
     await db.execute(
 
         `INSERT INTO sensor_log
@@ -19,6 +20,7 @@ async function saveSensorLog(packet) {
 
     );
 
+    console.log("[INSERT DONE]");
 }
 
 module.exports = {

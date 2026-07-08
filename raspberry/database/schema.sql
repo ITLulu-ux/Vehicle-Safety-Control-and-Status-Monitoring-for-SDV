@@ -1,35 +1,87 @@
 CREATE DATABASE IF NOT EXISTS raspberry_server;
 USE raspberry_server;
 
+/* ===========================
+   DTC Log
+=========================== */
+
 CREATE TABLE dtc_log (
+
     id INT AUTO_INCREMENT PRIMARY KEY,
-    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    ecu_id TINYINT NOT NULL,
+
     dtc_code VARCHAR(10) NOT NULL,
-    description VARCHAR(100) NOT NULL,
-    ecu VARCHAR(10) NOT NULL,
-    status VARCHAR(10) NOT NULL DEFAULT 'ACTIVE',
-    INDEX idx_dtc_code (dtc_code),
-    INDEX idx_ecu (ecu),
-    INDEX idx_timestamp (timestamp)
+
+    description VARCHAR(100),
+
+    status ENUM('ACTIVE','CLEARED')
+        DEFAULT 'ACTIVE'
+
 );
+
+/* ===========================
+   Heartbeat
+=========================== */
 
 CREATE TABLE heartbeat_log (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    ecu_name VARCHAR(20) NOT NULL UNIQUE,
-    last_received DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(15) NOT NULL DEFAULT 'CONNECTED',
 
-    INDEX idx_ecu_name (ecu_name)
+    ecu_id TINYINT PRIMARY KEY,
+
+    last_received DATETIME
+        DEFAULT CURRENT_TIMESTAMP,
+
+    status ENUM('CONNECTED','DISCONNECTED')
+        DEFAULT 'CONNECTED'
+
 );
 
+/* ===========================
+   Sensor Log
+=========================== */
+
 CREATE TABLE sensor_log (
+
     id INT AUTO_INCREMENT PRIMARY KEY,
-    timestamp DATETIME NOT NULL
-    DEFAULT CURRENT_TIMESTAMP,
-    can_id INT NOT NULL DEFAULT 0,
-    temperature INT NOT NULL,
-    humidity INT NOT NULL,
-    lux INT UNSIGNED NOT NULL,
-    speed INT UNSIGNED NOT NULL,
-    distance INT UNSIGNED NOT NULL
+
+    timestamp DATETIME
+        DEFAULT CURRENT_TIMESTAMP,
+
+    can_id INT NOT NULL,
+
+    temperature TINYINT NULL,
+
+    humidity TINYINT NULL,
+
+    lux SMALLINT NULL,
+
+    speed SMALLINT NULL,
+
+    distance INT NULL
+
+);
+
+/* ===========================
+   Gateway Command Log
+=========================== */
+
+CREATE TABLE gateway_command_log (
+
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    timestamp DATETIME
+        DEFAULT CURRENT_TIMESTAMP,
+
+    command_id TINYINT,
+
+    target_ecu TINYINT,
+
+    parameter VARCHAR(50),
+
+    value VARCHAR(50),
+
+    version VARCHAR(20)
+
 );

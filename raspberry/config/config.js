@@ -8,7 +8,8 @@ module.exports = {
 
     HEARTBEAT_TIMEOUT: 3000,
 
-    SERIAL_PORT: '/dev/ttyACM0',
+    SERIAL_PORT: '/dev/ttyACM0', 
+
     SERIAL_BAUD:115200,
     HEARTBEAT_TIMEOUT:3000
 

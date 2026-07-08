@@ -36,6 +36,7 @@ function startUartReceiver() {
 
     parser.on('data', async (line) => {
 
+        //console.log(line);
         const trimmed = line.trim();
 
         if (!trimmed) return;

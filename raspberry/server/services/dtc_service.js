@@ -5,6 +5,7 @@ const db = require('../../config/db');
  */
 async function saveDTC(dtc) {
 
+    console.log("[HB]", ecuId);
     await db.execute(
 
         `INSERT INTO dtc_log
@@ -20,13 +21,39 @@ async function saveDTC(dtc) {
 
     );
 
+    console.log("[HB DONE]");
 }
 
 /**
- * DTC 전체 조회
+ * ACTIVE DTC 존재 여부
+ */
+async function existsActiveDTC(ecuId, dtcCode) {
+
+    console.log("[HB]", ecuId);
+    const [rows] = await db.execute(
+
+        `SELECT id
+         FROM dtc_log
+         WHERE ecu_id = ?
+         AND dtc_code = ?
+         AND status='ACTIVE'
+         LIMIT 1`,
+
+        [ecuId, dtcCode]
+
+    );
+
+    console.log("[HB DONE]");
+    return rows.length > 0;
+
+}
+
+/**
+ * DTC 조회
  */
 async function getAllDTC() {
 
+    console.log("[HB]", ecuId);
     const [rows] = await db.execute(
 
         `SELECT *
@@ -35,6 +62,7 @@ async function getAllDTC() {
 
     );
 
+    console.log("[HB DONE]");
     return rows;
 
 }
@@ -44,21 +72,24 @@ async function getAllDTC() {
  */
 async function updateHeartbeat(ecuId) {
 
+    console.log("[HB]", ecuId);
     await db.execute(
 
         `INSERT INTO heartbeat_log
-        (ecu_id, last_received, status)
+        (ecu_id,last_received,status)
 
-        VALUES (?, NOW(), 'CONNECTED')
+        VALUES(?,NOW(),'CONNECTED')
 
         ON DUPLICATE KEY UPDATE
 
-        last_received = NOW(),
-        status = 'CONNECTED'`,
+        last_received=NOW(),
+
+        status='CONNECTED'`,
 
         [ecuId]
 
     );
+    console.log("[HB DONE]");
 
 }
 
@@ -67,6 +98,7 @@ async function updateHeartbeat(ecuId) {
  */
 async function getHeartbeat() {
 
+    console.log("[HB]", ecuId);
     const [rows] = await db.execute(
 
         `SELECT
@@ -78,18 +110,82 @@ async function getHeartbeat() {
 
     );
 
+    console.log("[HB DONE]");
     return rows;
 
 }
+
+/**
+ * Heartbeat Timeout 검사
+ */
+async function checkHeartbeatTimeout() {
+
+    const rows = await getHeartbeat();
+
+    for (const ecu of rows) {
+
+        const diff =
+            Date.now() -
+            new Date(ecu.last_received).getTime();
+
+        if (diff > 3000 && ecu.status === 'CONNECTED') {
+
+            console.log("[HB]", ecuId);
+            await db.execute(
+
+                `UPDATE heartbeat_log
+                 SET status='DISCONNECTED'
+                 WHERE ecu_id=?`,
+
+                [ecu.ecu_id]
+
+            );
+
+            console.log("[HB DONE]");
+            const exists =
+                await existsActiveDTC(
+                    ecu.ecu_id,
+                    'P0702'
+                );
+
+            if (!exists) {
+
+                await saveDTC({
+
+                    ecu_id: ecu.ecu_id,
+
+                    dtc_code: 'P0702',
+
+                    description: 'Heartbeat Timeout',
+
+                    status: 'ACTIVE'
+
+                });
+
+            }
+
+        }
+
+    }
+
+}
+
+/* 1초마다 검사 */
+
+setInterval(checkHeartbeatTimeout,1000);
 
 module.exports = {
 
     saveDTC,
 
+    existsActiveDTC,
+
     getAllDTC,
 
     updateHeartbeat,
 
-    getHeartbeat
+    getHeartbeat,
+
+    checkHeartbeatTimeout
 
 };

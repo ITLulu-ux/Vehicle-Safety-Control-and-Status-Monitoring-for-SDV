@@ -6,6 +6,7 @@
 #include "semphr.h"
 #include <stdio.h>
 #include <string.h>
+#include "usart.h"
 
 void CAN_Filter_Config(void) {
 
@@ -106,25 +107,206 @@ void CAN_ProcessRxMessage(void) {
     }
 }
 
-void CAN_SendHeartbeat(void) {
+void CAN_SendHeartbeat(void)
+{
     CAN_TxHeaderTypeDef txHeader = {0};
     uint8_t txData[1] = {0x01};
     uint32_t txMailbox;
+    HAL_StatusTypeDef ret;
 
-    if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0U) {
-        printf("[CAN TX ERROR] mailbox full (0x704)\r\n");
+    char dbg[64];
+
+//    snprintf(dbg,
+//             sizeof(dbg),
+//             "Heartbeat Task Running Mailbox=%lu\r\n",
+//             HAL_CAN_GetTxMailboxesFreeLevel(&hcan1));
+//
+//    HAL_UART_Transmit(&huart2,
+//                      (uint8_t *)dbg,
+//                      strlen(dbg),
+//                      100);
+
+    if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0U)
+    {
+        HAL_UART_Transmit(&huart2,
+                          (uint8_t *)"[HB] Mailbox Full\r\n",
+                          19,
+                          100);
         return;
     }
 
     txHeader.StdId = CAN_ID_HB_GATEWAY;
-    txHeader.RTR = CAN_RTR_DATA;
-    txHeader.IDE = CAN_ID_STD;
-    txHeader.DLC = 1;
+    txHeader.RTR   = CAN_RTR_DATA;
+    txHeader.IDE   = CAN_ID_STD;
+    txHeader.DLC   = 1;
     txHeader.TransmitGlobalTime = DISABLE;
 
-    if (HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox) != HAL_OK) {
-        printf("[CAN TX ERROR] 0x704 heartbeat failed\r\n");
-    } else {
-        Heartbeat_OnEcuReceived(4);
+    ret = HAL_CAN_AddTxMessage(&hcan1,
+                               &txHeader,
+                               txData,
+                               &txMailbox);
+
+    if (ret != HAL_OK)
+    {
+        snprintf(dbg,
+                 sizeof(dbg),
+                 "HB4 TX FAIL ret=%d\r\n",
+                 ret);
+
+        HAL_UART_Transmit(&huart2,
+                          (uint8_t *)dbg,
+                          strlen(dbg),
+                          100);
+        return;
     }
+
+//    HAL_UART_Transmit(&huart2,
+//                      (uint8_t *)"HB4 TX OK\r\n",
+//                      11,
+//                      100);
+
+    Heartbeat_OnEcuReceived(4);
+
+    if (xSemaphoreTake(gatewayDataMutex, portMAX_DELAY) == pdTRUE)
+    {
+        gatewayData.heartbeat4 = 1;
+        xSemaphoreGive(gatewayDataMutex);
+    }
+
+//    HAL_UART_Transmit(&huart2,
+//                      (uint8_t *)"HB4 SET=1\r\n",
+//                      11,
+//                      100);
 }
+//void CAN_SendHeartbeat(void) {
+//    CAN_TxHeaderTypeDef txHeader = {0};
+//    uint8_t txData[1] = {0x01};
+//    uint32_t txMailbox;
+//
+//    if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0U) {
+//        printf("[CAN TX ERROR] mailbox full (0x704)\r\n");
+//        return;
+//    }
+//
+//    txHeader.StdId = CAN_ID_HB_GATEWAY;
+//    txHeader.RTR = CAN_RTR_DATA;
+//    txHeader.IDE = CAN_ID_STD;
+//    txHeader.DLC = 1;
+//    txHeader.TransmitGlobalTime = DISABLE;
+//
+//    if (HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox) != HAL_OK) {
+//        printf("[CAN TX ERROR] 0x704 heartbeat failed\r\n");
+//    } else {
+//        Heartbeat_OnEcuReceived(4);
+//    }
+//
+//    Heartbeat_OnEcuReceived(4);
+//
+//    if (xSemaphoreTake(gatewayDataMutex, portMAX_DELAY) == pdTRUE)
+//    {
+//        gatewayData.heartbeat4 = 1;
+//        xSemaphoreGive(gatewayDataMutex);
+//    }
+//
+//}
+
+
+//void CAN_SendHeartbeat(void)
+//{
+//
+////	printf("Heartbeat Task Running\r\n");
+////	printf("Mailbox=%lu\r\n",
+////	       HAL_CAN_GetTxMailboxesFreeLevel(&hcan1));
+//	char dbg[64];
+//
+//	snprintf(dbg,
+//	         sizeof(dbg),
+//	         "Heartbeat Task Running Mailbox=%lu\r\n",
+//	         HAL_CAN_GetTxMailboxesFreeLevel(&hcan1));
+//
+//	HAL_UART_Transmit(&huart2,
+//	                  (uint8_t*)dbg,
+//	                  strlen(dbg),
+//	                  100);
+//    CAN_TxHeaderTypeDef txHeader = {0};
+//    uint8_t txData[1] = {0x01};
+//    uint32_t txMailbox;
+//    HAL_StatusTypeDef ret;
+//
+//    if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0U)
+//    {
+//        printf("[CAN TX ERROR] mailbox full (0x704)\r\n");
+//        return;
+//    }
+//
+//    txHeader.StdId = CAN_ID_HB_GATEWAY;
+//    txHeader.RTR = CAN_RTR_DATA;
+//    txHeader.IDE = CAN_ID_STD;
+//    txHeader.DLC = 1;
+//    txHeader.TransmitGlobalTime = DISABLE;
+//
+//    ret = HAL_CAN_AddTxMessage(&hcan1,
+//                               &txHeader,
+//                               txData,
+//                               &txMailbox);
+//
+//    if (ret != HAL_OK)
+//    {
+//        char dbg[64];
+//
+//        snprintf(dbg,
+//                 sizeof(dbg),
+//                 "HB4 TX FAIL ret=%d\r\n",
+//                 ret);
+//
+//        HAL_UART_Transmit(&huart2,
+//                          (uint8_t *)dbg,
+//                          (uint16_t)strlen(dbg),
+//                          100);
+//    }
+//    else
+//    {
+////        HAL_UART_Transmit(&huart2,
+////                          (uint8_t *)"HB4 TX OK\r\n",
+////                          (uint16_t)strlen("HB4 TX OK\r\n"),
+////                          100);
+//
+//    	char dbg[64];
+//
+//    	snprintf(dbg,
+//    	         sizeof(dbg),
+//    	         "HB4 TX OK, hb4=%d\r\n",
+//    	         gatewayData.heartbeat4);
+//
+//    	HAL_UART_Transmit(&huart2,
+//    	                  (uint8_t *)dbg,
+//    	                  (uint16_t)strlen(dbg),
+//    	                  100);
+//
+//        Heartbeat_OnEcuReceived(4);
+//
+//        // 테스트용 : hb4를 바로 1로 설정
+////        if (xSemaphoreTake(gatewayDataMutex, portMAX_DELAY) == pdTRUE)
+////        {
+////            gatewayData.heartbeat4 = 1;
+////            xSemaphoreGive(gatewayDataMutex);
+////        }
+//
+//
+//        if (xSemaphoreTake(gatewayDataMutex, portMAX_DELAY) == pdTRUE)
+//        {
+//            gatewayData.heartbeat4 = 1;
+//
+//            snprintf(dbg,
+//                     sizeof(dbg),
+//                     "HB4 SET=1\r\n");
+//
+//            HAL_UART_Transmit(&huart2,
+//                              (uint8_t *)dbg,
+//                              (uint16_t)strlen(dbg),
+//                              100);
+//
+//            xSemaphoreGive(gatewayDataMutex);
+//        }
+//    }
+//}

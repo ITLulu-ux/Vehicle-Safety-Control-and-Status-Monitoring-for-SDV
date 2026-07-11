@@ -12,6 +12,10 @@ static volatile uint8_t uartOtaModeActive = 0U;
 
 // [TX] 라즈베리파이로 통합 데이터 송신 (JSON, Pi DB 연동용)
 void UART_SendGatewayData(void) {
+//	HAL_UART_Transmit(&huart2,
+//	                  (uint8_t*)"UART_SEND\r\n",
+//	                  11,
+//	                  100);
     static char json[280];
     SensorData_t sensor;
     DrivingData_t driving;

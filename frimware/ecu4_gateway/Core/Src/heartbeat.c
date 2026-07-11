@@ -2,6 +2,9 @@
 #include "gateway_data.h"
 #include "FreeRTOS.h"
 #include "semphr.h"
+#include "usart.h"
+#include <string.h>
+#include <stdio.h>
 
 extern SemaphoreHandle_t gatewayDataMutex;
 
@@ -24,6 +27,22 @@ void Heartbeat_CheckTimeout(void)
         if (hbAliveTicks[i] > 0U) {
             hbAliveTicks[i]--;
         }
+        // ===== 여기부터 추가 =====
+           if (i == 3U)
+           {
+               char dbg[64];
+
+//               snprintf(dbg,
+//                        sizeof(dbg),
+//                        "HB4 Tick=%u\r\n",
+//                        hbAliveTicks[3]);
+//
+//               HAL_UART_Transmit(&huart2,
+//                                 (uint8_t *)dbg,
+//                                 (uint16_t)strlen(dbg),
+//                                 100);
+           }
+           // ===== 여기까지 추가 =====
 
         if (hbAliveTicks[i] == 0U) {
             if (i == 0U) {

@@ -106,6 +106,9 @@ int main(void)
   MX_CAN1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+//  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+//  HAL_Delay(1000);
+//  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
 	printf("========================================\r\n");
 	  printf("[System] ECU4 Gateway Booting (Direct to Pi)...\r\n");
 	  printf("========================================\r\n");

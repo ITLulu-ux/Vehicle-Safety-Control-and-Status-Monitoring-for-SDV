@@ -1,4 +1,4 @@
-#include "ota.h"
+#include <stdio.h>#include "ota.h"
 #include "stm32f4xx_hal_flash.h"
 #include "stm32f4xx_hal_flash_ex.h"
 
@@ -30,7 +30,7 @@ static HAL_StatusTypeDef OTA_EraseSlot(void)
 }
 
 void OTA_Start(const uint8_t *rx)
-{
+{	printf("[OTA START]\r\n");
     uint32_t size;
 
     if (rx == NULL) {
@@ -119,7 +119,7 @@ void OTA_End(const uint8_t *rx)
         /* 1차: 바이트 수 불일치 — ST-Link로 Sector 7 확인 */
     }
 
-    ota_mode_active = 0U;
+    ota_mode_active = 0U;    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
     ota_file_size = 0U;
     ota_received_bytes = 0U;
     ota_write_offset = 0U;

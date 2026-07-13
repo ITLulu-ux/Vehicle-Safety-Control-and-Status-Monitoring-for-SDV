@@ -306,17 +306,63 @@ function bindControlButtons() {
 
     clearButtons.forEach((btn) => {
         if (!btn) return;
-        btn.addEventListener("click", () => {
-            alert("DTC 삭제 API는 아직 연결되지 않았습니다.");
+        // btn.addEventListener("click", () => {
+        //     alert("DTC 삭제 API는 아직 연결되지 않았습니다.");
+        // });
+
+        btn.addEventListener("click", async () => {
+    try {
+        const res = await fetch("/api/dtc/clear", {
+            method: "POST"
+        });
+
+        const result = await res.json();
+
+        alert(result.message);
+
+        // 목록 새로고침
+        loadDashboard();
+
+    } catch (err) {
+        alert("DTC 삭제 실패");
+        console.error(err);
+    }
         });
     });
 
-    const otaBtn = document.getElementById("btnOta");
-    if (otaBtn) {
-        otaBtn.addEventListener("click", () => {
-            alert("OTA 업데이트 기능은 준비 중입니다.");
-        });
-    }
+    // const otaBtn = document.getElementById("btnOta");
+
+    // if (otaBtn) {
+
+    // otaBtn.addEventListener("click", async () => {
+
+    //     try {
+
+    //         const res = await fetch("/api/ota/start", {
+    //             method: "POST",
+    //             headers: {
+    //                 "Content-Type": "application/json"
+    //             },
+    //             body: JSON.stringify({
+    //                 target: 1
+    //             })
+    //         });
+
+    //         const result = await res.json();
+
+    //         alert(result.message);
+
+    //     } catch (err) {
+
+    //         console.error(err);
+
+    //         alert("OTA 실행 실패");
+
+    //     }
+
+    // });
+
+    // }
 }
 
 /* ===============================

@@ -55,9 +55,24 @@ function startUartReceiver() {
 
 function sendCommandToEcu4(command) {
 
-    if (!port || !port.isOpen) return;
+    if (!port || !port.isOpen) {
 
-    port.write(command);
+        console.log("[UART] PORT CLOSED");
+        return;
+
+    }
+
+    console.log("[UART TX]", command);
+
+    port.write(command, (err) => {
+
+        if (err) {
+            console.error("[UART WRITE FAIL]", err.message);
+        } else {
+            console.log("[UART WRITE OK]");
+        }
+
+    });
 
 }
 

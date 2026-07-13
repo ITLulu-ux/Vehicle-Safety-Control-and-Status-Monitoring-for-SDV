@@ -5,7 +5,7 @@ const db = require('../../config/db');
  */
 async function saveDTC(dtc) {
 
-    console.log("[HB]", ecuId);
+    console.log("[HB]", dtc.ecu_id);
     await db.execute(
 
         `INSERT INTO dtc_log
@@ -53,7 +53,7 @@ async function existsActiveDTC(ecuId, dtcCode) {
  */
 async function getAllDTC() {
 
-    console.log("[HB]", ecuId);
+    //console.log("[HB]", ecuId);
     const [rows] = await db.execute(
 
         `SELECT *
@@ -98,7 +98,7 @@ async function updateHeartbeat(ecuId) {
  */
 async function getHeartbeat() {
 
-    console.log("[HB]", ecuId);
+    //console.log("[HB]", ecuId);
     const [rows] = await db.execute(
 
         `SELECT
@@ -130,7 +130,7 @@ async function checkHeartbeatTimeout() {
 
         if (diff > 3000 && ecu.status === 'CONNECTED') {
 
-            console.log("[HB]", ecuId);
+            console.log("[HB]", ecu.ecu_id);
             await db.execute(
 
                 `UPDATE heartbeat_log
@@ -170,6 +170,33 @@ async function checkHeartbeatTimeout() {
 
 }
 
+
+function startHeartbeatMonitor() {
+    setInterval(checkHeartbeatTimeout,1000);
+}
+
+async function clearAllDTC() {
+
+    // STM32 Clear 명령
+    //sendDtcClearCommand();
+
+    // DB 삭제
+    await db.query(
+        "DELETE FROM dtc_log"
+    );
+
+    return {
+        success: true
+    };
+}
+
+async function getDTCList() {
+    const [rows] = await db.query(
+        "SELECT * FROM dtc_log ORDER BY id DESC"
+    );
+
+    return rows;
+}
 /* 1초마다 검사 */
 
 setInterval(checkHeartbeatTimeout,1000);
@@ -186,6 +213,12 @@ module.exports = {
 
     getHeartbeat,
 
-    checkHeartbeatTimeout
+    checkHeartbeatTimeout,
+
+    startHeartbeatMonitor,
+
+    clearAllDTC,
+
+    getDTCList
 
 };

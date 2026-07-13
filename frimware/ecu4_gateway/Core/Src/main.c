@@ -114,14 +114,14 @@ int main(void)
 	  printf("========================================\r\n");
 
 	  CAN_Filter_Config();
-//
-//	  if (HAL_CAN_Start(&hcan1) == HAL_OK) {
-//	      printf("[CAN] Start OK\r\n");
-//	  }
-//
-//	  // CAN & UART 수신 인터럽트 활성화
-//	  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
-//	  HAL_UART_Receive_IT(&huart2, uartRxBuffer, sizeof(uartRxBuffer));
+
+	  if (HAL_CAN_Start(&hcan1) == HAL_OK) {
+	      printf("[CAN] Start OK\r\n");
+	  }
+
+	  // CAN & UART 수신 인터럽트 활성화
+	  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+	  HAL_UART_Receive_IT(&huart2, uartRxBuffer, sizeof(uartRxBuffer));
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in cmsis_os2.c) */

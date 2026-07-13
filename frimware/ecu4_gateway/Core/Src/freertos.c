@@ -110,7 +110,7 @@ void MX_FREERTOS_Init(void) {
   /* Create the semaphores(s) */
   /* definition and creation of Sem_UART_Rx */
   osSemaphoreDef(Sem_UART_Rx);
-  Sem_UART_RxHandle = osSemaphoreCreate(osSemaphore(Sem_UART_Rx), 1);
+  Sem_UART_RxHandle = osSemaphoreCreate(osSemaphore(Sem_UART_Rx), 0); // 수정 :0에서 1로 바꿈
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -185,14 +185,14 @@ void Start_Task_UART(void const * argument)
     // ⭐️ [추가] 라즈베리파이 수신 초인종도 이 타이밍에 켭니다.
     HAL_UART_Receive_IT(&huart2, uartRxBuffer, UART_DOWNLINK_PACKET_LEN);
 
-//    for(;;)
-//    {
-//        // 2s마다 업링크 JSON, 그 사이 Pi OTA/제어 8바이트 수신 시 CAN 0x400 중계
-//        if(osSemaphoreWait(Sem_UART_RxHandle, 2000) == osOK) {
-//            UART_OnPacket();
-//        } else {
-//            UART_SendGatewayData();
-//        }
+   for(;;)
+   {
+       // 2s마다 업링크 JSON, 그 사이 Pi OTA/제어 8바이트 수신 시 CAN 0x400 중계
+       if(osSemaphoreWait(Sem_UART_RxHandle, 2000) == osOK) {
+           UART_OnPacket();
+       } else {
+           UART_SendGatewayData();
+       }
 
         for(;;)
         {

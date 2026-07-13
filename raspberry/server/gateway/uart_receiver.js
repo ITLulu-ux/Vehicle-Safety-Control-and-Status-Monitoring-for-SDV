@@ -80,3 +80,35 @@ module.exports = {
     startUartReceiver,
     sendCommandToEcu4
 };
+
+// // 테스트 코드
+// function sendCommandToEcu4(command) {
+
+//     if (!port || !port.isOpen) {
+//         console.error("[UART] PORT CLOSED");
+//         return;
+//     }
+
+//     if (!Buffer.isBuffer(command)) {
+//         console.error("[UART] INVALID BUFFER");
+//         return;
+//     }
+
+//     port.write(command, (err) => {
+
+//         if (err) {
+//             console.error("[UART WRITE FAIL]", err.message);
+//             return;
+//         }
+
+//         port.drain((err) => {
+
+//             if (err) {
+//                 console.error("[UART DRAIN FAIL]", err.message);
+//             }
+
+//         });
+
+//     });
+
+// }

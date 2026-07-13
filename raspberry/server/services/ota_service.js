@@ -131,3 +131,100 @@ module.exports = {
     sendCommandToEcu4
 
 };
+
+
+// // 테스트 코드
+
+// const fs = require("fs");
+// const path = require("path");
+
+// const { sendCommandToEcu4 } = require("../gateway/uart_receiver");
+
+// function getOTAStatus() {
+//     return {
+//         version: "1.0.0",
+//         status: "READY"
+//     };
+// }
+
+// async function startOTA(target) {
+
+//     const fileName = `ecu${target}_sensor.bin`;
+
+//     const filePath = path.join(
+//         __dirname,
+//         "..",
+//         "..",
+//         fileName
+//     );
+
+//     if (!fs.existsSync(filePath)) {
+//         throw new Error(`${fileName} 파일이 없습니다.`);
+//     }
+
+//     const firmware = fs.readFileSync(filePath);
+
+//     sendOTAStart(target, firmware.length);
+
+//     // ECU에서 Flash Erase 완료 대기
+//     await delay(2000);
+
+//     await sendOTAData(target, firmware);
+
+//     sendOTAEnd(target);
+// }
+
+// function sendOTAStart(target, firmwareSize) {
+
+//     const frame = Buffer.alloc(8);
+
+//     frame[0] = 0x02;      // OTA_START
+//     frame[1] = target;    // Target ECU
+
+//     frame.writeUInt32LE(firmwareSize, 2);
+
+//     sendCommandToEcu4(frame);
+// }
+
+// async function sendOTAData(target, firmware) {
+
+//     for (let offset = 0; offset < firmware.length; offset += 6) {
+
+//         const frame = Buffer.alloc(8);
+
+//         frame[0] = 0x03;      // OTA_DATA
+//         frame[1] = target;
+
+//         const bytesToCopy = Math.min(6, firmware.length - offset);
+
+//         firmware.copy(
+//             frame,
+//             2,
+//             offset,
+//             offset + bytesToCopy
+//         );
+
+//         sendCommandToEcu4(frame);
+
+//         await delay(2);
+//     }
+// }
+
+// function sendOTAEnd(target) {
+
+//     const frame = Buffer.alloc(8);
+
+//     frame[0] = 0x04;      // OTA_END
+//     frame[1] = target;
+
+//     sendCommandToEcu4(frame);
+// }
+
+// function delay(ms) {
+//     return new Promise(resolve => setTimeout(resolve, ms));
+// }
+
+// module.exports = {
+//     getOTAStatus,
+//     startOTA
+// };

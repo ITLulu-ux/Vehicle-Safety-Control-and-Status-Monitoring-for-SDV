@@ -330,39 +330,39 @@ function bindControlButtons() {
         });
     });
 
-    // const otaBtn = document.getElementById("btnOta");
+    const otaBtn = document.getElementById("btnOta");
 
-    // if (otaBtn) {
+    if (otaBtn) {
 
-    // otaBtn.addEventListener("click", async () => {
+    otaBtn.addEventListener("click", async () => {
 
-    //     try {
+        try {
 
-    //         const res = await fetch("/api/ota/start", {
-    //             method: "POST",
-    //             headers: {
-    //                 "Content-Type": "application/json"
-    //             },
-    //             body: JSON.stringify({
-    //                 target: 1
-    //             })
-    //         });
+            const res = await fetch("/api/ota/start", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    target: 1
+                })
+            });
 
-    //         const result = await res.json();
+            const result = await res.json();
 
-    //         alert(result.message);
+            alert(result.message);
 
-    //     } catch (err) {
+        } catch (err) {
 
-    //         console.error(err);
+            console.error(err);
 
-    //         alert("OTA 실행 실패");
+            alert("OTA 실행 실패");
 
-    //     }
+        }
 
-    // });
+    });
 
-    // }
+    }
 }
 
 /* ===============================

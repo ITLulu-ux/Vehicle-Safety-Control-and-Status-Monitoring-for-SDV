@@ -14,21 +14,8 @@ STM32 ECU와 Raspberry Pi Gateway를 기반으로 CAN 통신, UDS 진단 서비�
 
   
 # 시스템 아키텍처
-```mermaid
-graph LR
-    subgraph ECU_Group [차량 내부 네트워크]
-        ECU1[ECU 1] -- CAN --> ECU4[ECU 4 Master]
-        ECU2[ECU 2] -- CAN --> ECU4
-        ECU3[ECU 3] -- CAN --> ECU4
-    end
+<img width="1027" height="782" alt="image" src="https://github.com/user-attachments/assets/ee717540-e5ef-46f4-aac2-804aa4e6a0f6" />
 
-    ECU4 -- UART --> RPi[Raspberry Pi 5 Gateway]
-    
-    subgraph Service [백엔드 & 관제]
-        RPi --> Node[Node.js Server]
-        Node --> DB[(MariaDB)]
-        Node --> Dash[Web Dashboard]
-    end
 
 
 
